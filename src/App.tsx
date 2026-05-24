@@ -35,6 +35,7 @@ export default function App() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [crf, setCrf] = useState(28);
   const [scale, setScale] = useState('original');
+  const [preset, setPreset] = useState<'ultrafast' | 'superfast' | 'veryfast' | 'fast'>('ultrafast');
 
   // Transcriber State
   const [audioFile, setAudioFile] = useState<File | null>(null);
@@ -111,7 +112,7 @@ export default function App() {
         '-i', inputFileName,
         '-vcodec', 'libx264',
         '-crf', crf.toString(),
-        '-preset', 'veryfast',
+        '-preset', preset,  // ultrafast, superfast, veryfast, fast
         '-acodec', 'aac',
       ];
       if (scale === '720p') ffmpegArgs.push('-vf', 'scale=-2:720');
@@ -273,6 +274,15 @@ export default function App() {
                       <label className="text-sm font-medium block mb-4">Target Quality</label>
                       <input type="range" min="18" max="35" value={crf} onChange={(e) => setCrf(parseInt(e.target.value))} className="w-full accent-[#1a1a1a]" />
                       <div className="flex justify-between mt-2 text-[10px] opacity-40 uppercase tracking-tighter"><span>Source</span><span>Lite</span></div>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium block mb-4">Compression Speed</label>
+                      <div className="flex gap-2">
+                        {(['ultrafast', 'superfast', 'veryfast', 'fast'] as const).map(p => (
+                          <button key={p} onClick={() => setPreset(p)} className={`flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${preset === p ? 'bg-[#1a1a1a] text-white border-[#1a1a1a]' : 'border-[#1a1a1a]/10 hover:border-[#1a1a1a]/30'}`}>{p}</button>
+                        ))}
+                      </div>
+                      <p className="text-[10px] opacity-40 mt-2 font-mono">Faster = Quicker Encoding</p>
                     </div>
                     <div>
                       <label className="text-sm font-medium block mb-4">Resolution</label>
