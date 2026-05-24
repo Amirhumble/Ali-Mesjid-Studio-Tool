@@ -296,29 +296,30 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f5f5f5] text-[#1a1a1a] font-sans selection:bg-[#1a1a1a] selection:text-white p-4 md:p-8">
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <header className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-8">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <div className="p-2 bg-[#1a1a1a] rounded-lg">
-                {activeTab === 'compressor' ? <Film className="w-5 h-5 text-white" /> : <Mic className="w-5 h-5 text-white" />}
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
+      {/* Modern Navigation Bar */}
+      <nav className="sticky top-0 z-40 backdrop-blur-xl bg-white/80 border-b border-slate-200/50 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 py-4">
+          <div className="flex items-center justify-between">
+            {/* Logo */}
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg">
+                <Film className="w-6 h-6 text-white" />
               </div>
-              <span className="text-xs font-bold uppercase tracking-widest opacity-50">ClipShrink Studio v1.1</span>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">Ali Mesjid</h1>
+                <p className="text-xs text-slate-500 font-medium">Studio Tool</p>
+              </div>
             </div>
-            <h1 className="text-5xl md:text-7xl font-semibold tracking-tighter text-[#1a1a1a]">
-              ClipShrink
-            </h1>
-          </div>
-          
-          {/* Navigation Tabs */}
-          <div className="flex gap-4 items-center self-start md:self-end">
-            <nav className="flex bg-white p-1.5 rounded-2xl border border-[#1a1a1a]/5">
+
+            {/* Center Navigation */}
+            <div className="hidden md:flex items-center gap-2 bg-slate-100/50 p-1.5 rounded-xl">
               <button 
                 onClick={() => setActiveTab('compressor')}
-                className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
-                  activeTab === 'compressor' ? 'bg-[#1a1a1a] text-white' : 'hover:bg-[#f5f5f5] opacity-50 hover:opacity-100'
+                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${
+                  activeTab === 'compressor' 
+                    ? 'bg-white text-blue-600 shadow-md' 
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Film className="w-4 h-4" />
@@ -326,24 +327,61 @@ export default function App() {
               </button>
               <button 
                 onClick={() => setActiveTab('transcribe')}
-                className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
-                  activeTab === 'transcribe' ? 'bg-[#1a1a1a] text-white' : 'hover:bg-[#f5f5f5] opacity-50 hover:opacity-100'
+                className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all duration-300 flex items-center gap-2 ${
+                  activeTab === 'transcribe' 
+                    ? 'bg-white text-blue-600 shadow-md' 
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
                 <Mic className="w-4 h-4" />
                 Transcriber
               </button>
-            </nav>
+            </div>
+
+            {/* Right Actions */}
             <button 
               onClick={() => setShowHistory(!showHistory)}
-              className="px-4 py-2.5 bg-white rounded-2xl border border-[#1a1a1a]/5 hover:bg-[#f5f5f5] transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+              className={`px-4 py-2.5 rounded-lg font-semibold transition-all duration-300 flex items-center gap-2 text-sm ${
+                showHistory
+                  ? 'bg-blue-600 text-white shadow-lg'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
               title="View history"
             >
               <Clock className="w-4 h-4" />
-              History
+              <span className="hidden sm:inline">History</span>
             </button>
           </div>
-        </header>
+
+          {/* Mobile Navigation */}
+          <div className="md:hidden flex gap-2 mt-4">
+            <button 
+              onClick={() => setActiveTab('compressor')}
+              className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                activeTab === 'compressor' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              <Film className="w-4 h-4 inline mr-2" />
+              Compress
+            </button>
+            <button 
+              onClick={() => setActiveTab('transcribe')}
+              className={`flex-1 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                activeTab === 'transcribe' 
+                  ? 'bg-blue-600 text-white' 
+                  : 'bg-slate-100 text-slate-700'
+              }`}
+            >
+              <Mic className="w-4 h-4 inline mr-2" />
+              Transcribe
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-7xl mx-auto px-4 md:px-8 py-8">
 
         {/* History Modal */}
         {showHistory && (
@@ -351,67 +389,76 @@ export default function App() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-[#1a1a1a]/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-50 flex items-center justify-center p-4"
             onClick={() => setShowHistory(false)}
           >
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl"
+              className="bg-white rounded-2xl p-8 max-w-3xl w-full max-h-[85vh] overflow-y-auto shadow-2xl"
             >
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                  <Clock className="w-6 h-6" />
-                  <h2 className="text-2xl font-bold">History</h2>
+                  <div className="p-2.5 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg">
+                    <Clock className="w-5 h-5 text-white" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-slate-900">History</h2>
                 </div>
                 <button 
                   onClick={() => setShowHistory(false)}
-                  className="p-2 hover:bg-[#f5f5f5] rounded-xl transition-all"
+                  className="p-2 hover:bg-slate-100 rounded-lg transition-all"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-5 h-5 text-slate-600" />
                 </button>
               </div>
 
               {compressionHistory.length === 0 && transcriptionHistory.length === 0 ? (
-                <p className="text-center text-[#1a1a1a]/50 py-8">No history yet. Start compressing videos or transcribing audio!</p>
+                <div className="text-center py-12">
+                  <Clock className="w-12 h-12 text-slate-300 mx-auto mb-4" />
+                  <p className="text-slate-500 text-lg">No history yet</p>
+                  <p className="text-slate-400 text-sm mt-2">Start compressing videos or transcribing audio to see your history here</p>
+                </div>
               ) : (
                 <>
                   {compressionHistory.length > 0 && (
                     <div className="mb-8">
-                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        <Film className="w-5 h-5" />
+                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-slate-900">
+                        <Film className="w-5 h-5 text-blue-600" />
                         Compression History
                       </h3>
                       <div className="space-y-3">
                         {compressionHistory.map((item) => (
-                          <div key={item.id} className="bg-[#f5f5f5] p-4 rounded-2xl flex items-center justify-between">
-                            <div className="flex-1">
-                              <p className="font-semibold text-sm truncate">{item.fileName}</p>
-                              <p className="text-xs text-[#1a1a1a]/50 mt-1">
-                                {formatSize(item.originalSize)} → {formatSize(item.compressedSize)} ({item.compression}% saved)
-                              </p>
-                              <p className="text-xs text-[#1a1a1a]/40 mt-1">
-                                {new Date(item.timestamp).toLocaleString()}
-                              </p>
-                            </div>
-                            <div className="flex gap-2 ml-4">
-                              <a 
-                                href={item.downloadUrl} 
-                                download={`shrunken_${item.fileName}`}
-                                className="p-2 bg-[#1a1a1a] text-white rounded-xl hover:bg-[#333] transition-all"
-                                title="Download"
-                              >
-                                <Download className="w-4 h-4" />
-                              </a>
-                              <button 
-                                onClick={() => deleteCompressionHistory(item.id)}
-                                className="p-2 bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition-all"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
+                          <div key={item.id} className="bg-gradient-to-r from-blue-50 to-slate-50 p-4 rounded-xl border border-blue-100 hover:border-blue-300 transition-all">
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <p className="font-semibold text-slate-900 truncate">{item.fileName}</p>
+                                <p className="text-sm text-slate-600 mt-1">
+                                  {formatSize(item.originalSize)} → {formatSize(item.compressedSize)} 
+                                  <span className="text-green-600 font-semibold ml-2">({item.compression}% saved)</span>
+                                </p>
+                                <p className="text-xs text-slate-500 mt-1">
+                                  {new Date(item.timestamp).toLocaleString()}
+                                </p>
+                              </div>
+                              <div className="flex gap-2 ml-4">
+                                <a 
+                                  href={item.downloadUrl} 
+                                  download={`shrunken_${item.fileName}`}
+                                  className="p-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md"
+                                  title="Download"
+                                >
+                                  <Download className="w-4 h-4" />
+                                </a>
+                                <button 
+                                  onClick={() => deleteCompressionHistory(item.id)}
+                                  className="p-2.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}
@@ -421,29 +468,29 @@ export default function App() {
 
                   {transcriptionHistory.length > 0 && (
                     <div>
-                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        <Mic className="w-5 h-5" />
+                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-slate-900">
+                        <Mic className="w-5 h-5 text-blue-600" />
                         Transcription History
                       </h3>
                       <div className="space-y-3">
                         {transcriptionHistory.map((item) => (
-                          <div key={item.id} className="bg-[#f5f5f5] p-4 rounded-2xl">
-                            <div className="flex items-start justify-between mb-2">
+                          <div key={item.id} className="bg-gradient-to-r from-purple-50 to-slate-50 p-4 rounded-xl border border-purple-100 hover:border-purple-300 transition-all">
+                            <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
-                                <p className="font-semibold text-sm truncate">{item.fileName}</p>
-                                <p className="text-xs text-[#1a1a1a]/40 mt-1">
+                                <p className="font-semibold text-slate-900 truncate">{item.fileName}</p>
+                                <p className="text-xs text-slate-500 mt-1">
                                   {new Date(item.timestamp).toLocaleString()}
                                 </p>
                               </div>
                               <button 
                                 onClick={() => deleteTranscriptionHistory(item.id)}
-                                className="p-2 bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition-all"
+                                className="p-2.5 bg-red-100 text-red-600 rounded-lg hover:bg-red-200 transition-all"
                                 title="Delete"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             </div>
-                            <p className="text-sm text-[#1a1a1a]/70 mt-3 p-3 bg-white rounded-xl max-h-[100px] overflow-y-auto">
+                            <p className="text-sm text-slate-700 mt-3 p-3 bg-white rounded-lg max-h-[120px] overflow-y-auto border border-slate-200">
                               {item.transcription}
                             </p>
                           </div>
@@ -455,7 +502,7 @@ export default function App() {
                   {(compressionHistory.length > 0 || transcriptionHistory.length > 0) && (
                     <button 
                       onClick={clearAllHistory}
-                      className="w-full mt-6 px-4 py-3 bg-red-100 text-red-600 rounded-2xl font-bold hover:bg-red-200 transition-all text-sm uppercase tracking-wider"
+                      className="w-full mt-8 px-4 py-3 bg-red-100 text-red-600 rounded-lg font-bold hover:bg-red-200 transition-all text-sm uppercase tracking-wider"
                     >
                       Clear All History
                     </button>
@@ -478,33 +525,33 @@ export default function App() {
               {/* Compressor Content */}
               <div className="lg:col-span-7 flex flex-col gap-6">
                 {!video ? (
-                  <label className="group relative flex flex-col items-center justify-center w-full aspect-video border-2 border-dashed border-[#1a1a1a]/10 rounded-3xl cursor-pointer hover:bg-white hover:border-[#1a1a1a]/30 transition-all duration-500 overflow-hidden">
-                    <div className="absolute inset-0 bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] bg-size-[20px_20px] opacity-[0.03]" />
-                    <Upload className="w-12 h-12 mb-4 opacity-20 group-hover:opacity-100 transition-opacity" />
-                    <p className="text-xl font-medium">Drop Video File</p>
-                    <p className="text-xs opacity-50 font-mono mt-2">MP4, MOV up to 2GB</p>
+                  <label className="group relative flex flex-col items-center justify-center w-full aspect-video border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:bg-slate-50 hover:border-blue-400 transition-all duration-500 overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50">
+                    <div className="absolute inset-0 bg-[radial-gradient(#0f172a_1px,transparent_1px)] bg-size-[20px_20px] opacity-[0.02]" />
+                    <Upload className="w-12 h-12 mb-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                    <p className="text-xl font-medium text-slate-700">Drop Video File</p>
+                    <p className="text-xs text-slate-500 font-mono mt-2">MP4, MOV up to 2GB</p>
                     <input type="file" className="hidden" accept="video/*" onChange={handleVideoChange} />
                   </label>
                 ) : (
-                  <div className="bg-white rounded-3xl p-6 shadow-sm border border-[#1a1a1a]/5">
+                  <div className="bg-white rounded-lg p-6 shadow-md border border-slate-200">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <Film className="w-4 h-4 opacity-30" />
-                        <h3 className="text-xs font-bold truncate max-w-[200px]">{video.name}</h3>
+                        <Film className="w-4 h-4 text-slate-400" />
+                        <h3 className="text-xs font-bold truncate max-w-[200px] text-slate-700">{video.name}</h3>
                       </div>
-                      <button onClick={() => setVideo(null)} className="text-[10px] uppercase font-bold tracking-widest opacity-30 hover:opacity-100 hover:text-red-500 transition-all">Clear</button>
+                      <button onClick={() => setVideo(null)} className="text-[10px] uppercase font-bold tracking-widest text-slate-500 hover:text-red-600 transition-all">Clear</button>
                     </div>
-                    <div className="relative aspect-video rounded-2xl bg-[#1a1a1a] overflow-hidden">
+                    <div className="relative aspect-video rounded-lg bg-slate-900 overflow-hidden">
                       <video src={URL.createObjectURL(video)} className="w-full h-full object-contain" controls />
                       {status === 'compressing' && (
-                        <div className="absolute inset-0 bg-[#1a1a1a]/90 flex flex-col items-center justify-center p-8">
+                        <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center p-8">
                           <div className="w-full max-w-xs">
-                            <div className="flex justify-between mb-2 text-white/50 text-[10px] font-mono tracking-widest uppercase">
+                            <div className="flex justify-between mb-2 text-slate-300 text-[10px] font-mono tracking-widest uppercase">
                               <span>Compressing</span>
                               <span>{progress}%</span>
                             </div>
-                            <div className="h-1 bg-white/10 rounded-full overflow-hidden">
-                              <motion.div className="h-full bg-white" animate={{ width: `${progress}%` }} />
+                            <div className="h-1 bg-slate-700 rounded-full overflow-hidden">
+                              <motion.div className="h-full bg-gradient-to-r from-blue-500 to-blue-600" animate={{ width: `${progress}%` }} />
                             </div>
                           </div>
                         </div>
@@ -515,36 +562,36 @@ export default function App() {
               </div>
 
               <div className="lg:col-span-5 flex flex-col gap-6">
-                <div className="bg-white rounded-3xl p-8 shadow-sm border border-[#1a1a1a]/5 h-full">
+                <div className="bg-white rounded-lg p-8 shadow-md border border-slate-200 h-full">
                   <div className="flex items-center gap-2 mb-8">
-                    <Settings2 className="w-4 h-4 opacity-30" />
-                    <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-40">Compression Settings</h2>
+                    <Settings2 className="w-4 h-4 text-slate-400" />
+                    <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-600">Compression Settings</h2>
                   </div>
                   <div className="space-y-8">
                     <div>
-                      <label className="text-sm font-medium block mb-4">Target Quality</label>
-                      <input type="range" min="18" max="35" value={crf} onChange={(e) => setCrf(parseInt(e.target.value))} className="w-full accent-[#1a1a1a]" />
-                      <div className="flex justify-between mt-2 text-[10px] opacity-40 uppercase tracking-tighter"><span>Source</span><span>Lite</span></div>
+                      <label className="text-sm font-medium block mb-4 text-slate-700">Target Quality</label>
+                      <input type="range" min="18" max="35" value={crf} onChange={(e) => setCrf(parseInt(e.target.value))} className="w-full accent-blue-600" />
+                      <div className="flex justify-between mt-2 text-[10px] text-slate-500 uppercase tracking-tighter"><span>Source</span><span>Lite</span></div>
                     </div>
                     <div>
-                      <label className="text-sm font-medium block mb-4">Compression Speed</label>
+                      <label className="text-sm font-medium block mb-4 text-slate-700">Compression Speed</label>
                       <div className="flex gap-2">
                         {(['ultrafast', 'superfast', 'veryfast', 'fast'] as const).map(p => (
-                          <button key={p} onClick={() => setPreset(p)} className={`flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${preset === p ? 'bg-[#1a1a1a] text-white border-[#1a1a1a]' : 'border-[#1a1a1a]/10 hover:border-[#1a1a1a]/30'}`}>{p}</button>
+                          <button key={p} onClick={() => setPreset(p)} className={`flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${preset === p ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'border-slate-300 text-slate-700 hover:border-blue-400'}`}>{p}</button>
                         ))}
                       </div>
-                      <p className="text-[10px] opacity-40 mt-2 font-mono">Faster = Quicker Encoding</p>
+                      <p className="text-[10px] text-slate-500 mt-2 font-mono">Faster = Quicker Encoding</p>
                     </div>
                     <div>
-                      <label className="text-sm font-medium block mb-4">Resolution</label>
+                      <label className="text-sm font-medium block mb-4 text-slate-700">Resolution</label>
                       <div className="flex gap-2">
                         {['original', '720p', '480p'].map(res => (
-                          <button key={res} onClick={() => setScale(res)} className={`flex-1 py-3 rounded-xl text-[10px] font-bold uppercase tracking-wider border transition-all ${scale === res ? 'bg-[#1a1a1a] text-white border-[#1a1a1a]' : 'border-[#1a1a1a]/10 hover:border-[#1a1a1a]/30'}`}>{res}</button>
+                          <button key={res} onClick={() => setScale(res)} className={`flex-1 py-3 rounded-lg text-[10px] font-bold uppercase tracking-wider border transition-all ${scale === res ? 'bg-blue-600 text-white border-blue-600 shadow-md' : 'border-slate-300 text-slate-700 hover:border-blue-400'}`}>{res}</button>
                         ))}
                       </div>
                     </div>
                     {errorMessage && (
-                      <div className="p-4 bg-red-50 rounded-2xl border border-red-100 text-red-600 flex items-start gap-3">
+                      <div className="p-4 bg-red-50 rounded-lg border border-red-200 text-red-700 flex items-start gap-3">
                         <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
                         <div className="text-sm">{errorMessage}</div>
                       </div>
@@ -552,7 +599,7 @@ export default function App() {
                     <button 
                       disabled={!video || !loaded || status === 'compressing'}
                       onClick={compressVideo} 
-                      className="w-full bg-[#1a1a1a] text-white py-5 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-[#333] transition-all disabled:opacity-20"
+                      className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-5 rounded-lg font-bold flex items-center justify-center gap-3 hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50 shadow-md"
                     >
                       {status === 'compressing' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
                       {status === 'compressing' ? 'SHRINKING...' : 'START COMPRESSION'}
@@ -560,18 +607,18 @@ export default function App() {
                   </div>
 
                   {status === 'completed' && outputUrl && (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8 pt-8 border-t border-[#f5f5f5]">
-                      <div className="bg-[#f5f5f5] p-5 rounded-2xl flex items-center justify-between mb-4">
+                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-8 pt-8 border-t border-slate-200">
+                      <div className="bg-gradient-to-r from-blue-50 to-slate-50 p-5 rounded-lg flex items-center justify-between mb-4 border border-slate-200">
                         <div>
-                          <p className="text-[10px] opacity-40 uppercase font-mono tracking-widest">Shrunk to</p>
-                          <p className="text-sm font-bold">{formatSize(compressedSize!)}</p>
+                          <p className="text-[10px] text-slate-600 uppercase font-mono tracking-widest">Shrunk to</p>
+                          <p className="text-sm font-bold text-slate-900">{formatSize(compressedSize!)}</p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[10px] opacity-40 uppercase font-mono tracking-widest">Savings</p>
+                          <p className="text-[10px] text-slate-600 uppercase font-mono tracking-widest">Savings</p>
                           <p className="text-sm font-bold text-green-600">{Math.round(((video!.size - compressedSize!) / video!.size) * 100)}%</p>
                         </div>
                       </div>
-                      <a href={outputUrl} download={`shrunken_${video?.name}`} className="w-full flex items-center justify-center gap-3 bg-white border-2 border-[#1a1a1a] py-5 rounded-2xl font-bold hover:bg-[#f5f5f5] transition-all">
+                      <a href={outputUrl} download={`shrunken_${video?.name}`} className="w-full flex items-center justify-center gap-3 bg-white border-2 border-blue-600 text-blue-600 py-5 rounded-lg font-bold hover:bg-blue-50 transition-all">
                         <Download className="w-5 h-5" /> DOWNLOAD MP4
                       </a>
                     </motion.div>
@@ -589,28 +636,28 @@ export default function App() {
             >
               {/* Transcriber Content */}
               <div className="lg:col-span-12">
-                <div className="bg-white rounded-3xl p-8 lg:p-12 shadow-sm border border-[#1a1a1a]/5 min-h-[400px] flex flex-col">
+                <div className="bg-white rounded-lg p-8 lg:p-12 shadow-md border border-slate-200 min-h-[400px] flex flex-col">
                   {!transcriptionResult && transcriptionStatus !== 'transcribing' ? (
                     <div className="flex-1 flex flex-col items-center justify-center">
-                      <label className="group relative flex flex-col items-center justify-center w-full max-w-xl aspect-21/9 border-2 border-dashed border-[#1a1a1a]/10 rounded-3xl cursor-pointer hover:bg-[#f5f5f5] hover:border-[#1a1a1a]/30 transition-all duration-500 overflow-hidden">
-                        <div className="absolute inset-0 bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] bg-size-[20px_20px] opacity-[0.03]" />
+                      <label className="group relative flex flex-col items-center justify-center w-full max-w-xl aspect-21/9 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:bg-slate-50 hover:border-blue-400 transition-all duration-500 overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50">
+                        <div className="absolute inset-0 bg-[radial-gradient(#0f172a_1px,transparent_1px)] bg-size-[20px_20px] opacity-[0.02]" />
                         {audioFile ? (
                           <div className="flex flex-col items-center">
-                            <FileAudio className="w-12 h-12 mb-4 text-[#1a1a1a]/40" />
-                            <p className="text-sm font-bold">{audioFile.name}</p>
-                            <p className="text-[10px] opacity-40 font-mono tracking-widest mt-1 uppercase">{formatSize(audioFile.size)} • {audioFile.type}</p>
+                            <FileAudio className="w-12 h-12 mb-4 text-slate-400" />
+                            <p className="text-sm font-bold text-slate-700">{audioFile.name}</p>
+                            <p className="text-[10px] text-slate-500 font-mono tracking-widest mt-1 uppercase">{formatSize(audioFile.size)} • {audioFile.type}</p>
                             <button 
                               onClick={(e) => { e.preventDefault(); setAudioFile(null); }}
-                              className="mt-4 text-[10px] font-bold uppercase tracking-widest text-red-500 hover:underline"
+                              className="mt-4 text-[10px] font-bold uppercase tracking-widest text-red-600 hover:underline"
                             >
                               Change File
                             </button>
                           </div>
                         ) : (
                           <>
-                            <FileAudio className="w-12 h-12 mb-4 opacity-20 group-hover:opacity-100 transition-opacity" />
-                            <p className="text-xl font-medium">Select Audio File</p>
-                            <p className="text-xs opacity-50 font-mono mt-2 uppercase tracking-tighter">MP3, WAV, AAC, etc.</p>
+                            <FileAudio className="w-12 h-12 mb-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                            <p className="text-xl font-medium text-slate-700">Select Audio File</p>
+                            <p className="text-xs text-slate-500 font-mono mt-2 uppercase tracking-tighter">MP3, WAV, AAC, etc.</p>
                           </>
                         )}
                         <input type="file" className="hidden" accept="audio/*" onChange={handleAudioChange} />
@@ -622,7 +669,7 @@ export default function App() {
                             animate={{ opacity: 1, scale: 1 }}
                             onClick={transcribeAudio}
                             disabled={transcriptionStatus === 'transcribing'}
-                            className="flex-1 bg-[#1a1a1a] text-white px-12 py-5 rounded-2xl font-bold flex items-center justify-center gap-4 hover:bg-[#333] transition-all shadow-xl shadow-[#1a1a1a]/20 disabled:opacity-50"
+                            className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-12 py-5 rounded-lg font-bold flex items-center justify-center gap-4 hover:from-blue-700 hover:to-blue-800 transition-all shadow-md disabled:opacity-50"
                           >
                             <MessageSquare className="w-5 h-5" />
                             {transcriptionStatus === 'transcribing' ? 'TRANSCRIBING...' : 'TRANSCRIBE WITH GEMINI AI'}
@@ -632,7 +679,7 @@ export default function App() {
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
                               onClick={cancelTranscription}
-                              className="px-6 bg-red-500 text-white py-5 rounded-2xl font-bold hover:bg-red-600 transition-all"
+                              className="px-6 bg-red-600 text-white py-5 rounded-lg font-bold hover:bg-red-700 transition-all"
                             >
                               CANCEL
                             </motion.button>
@@ -644,41 +691,41 @@ export default function App() {
                     <div className="flex-1 flex flex-col items-center justify-center text-center p-12">
                       <div className="relative mb-12">
                         <motion.div 
-                          className="absolute inset-0 rounded-full bg-[#1a1a1a]/5 scale-150"
+                          className="absolute inset-0 rounded-full bg-blue-600/10 scale-150"
                           animate={{ scale: [1.2, 2, 1.2], opacity: [0.5, 0, 0.5] }}
                           transition={{ duration: 2, repeat: Infinity }}
                         />
-                        <div className="relative p-8 bg-[#1a1a1a] rounded-3xl text-white">
+                        <div className="relative p-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg text-white">
                           <RefreshCw className="w-10 h-10 animate-spin" />
                         </div>
                       </div>
-                      <h2 className="text-3xl font-semibold tracking-tight mb-2">Gemini is Listening...</h2>
-                      <p className="text-sm opacity-50 font-mono max-w-sm tracking-wide uppercase">Processing audio waves into text data via Google GenAI</p>
+                      <h2 className="text-3xl font-semibold tracking-tight mb-2 text-slate-900">Gemini is Listening...</h2>
+                      <p className="text-sm text-slate-600 font-mono max-w-sm tracking-wide uppercase">Processing audio waves into text data via Google GenAI</p>
                       <motion.button 
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         onClick={cancelTranscription}
-                        className="mt-8 px-8 bg-red-500 text-white py-4 rounded-2xl font-bold hover:bg-red-600 transition-all"
+                        className="mt-8 px-8 bg-red-600 text-white py-4 rounded-lg font-bold hover:bg-red-700 transition-all"
                       >
                         CANCEL TRANSCRIPTION
                       </motion.button>
                     </div>
                   ) : (
                     <div className="flex-1 flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      <div className="flex items-center justify-between mb-8 pb-6 border-b border-[#1a1a1a]/5">
+                      <div className="flex items-center justify-between mb-8 pb-6 border-b border-slate-200">
                         <div className="flex items-center gap-4">
-                          <div className="p-3 bg-[#f5f5f5] rounded-2xl">
-                            <Type className="w-5 h-5 text-[#1a1a1a]" />
+                          <div className="p-3 bg-gradient-to-br from-blue-100 to-slate-100 rounded-lg">
+                            <Type className="w-5 h-5 text-blue-600" />
                           </div>
                           <div>
-                            <h3 className="text-xs font-bold uppercase tracking-widest opacity-40">Transcription Result</h3>
-                            <p className="text-sm font-bold text-[#1a1a1a] opacity-80">{audioFile?.name}</p>
+                            <h3 className="text-xs font-bold uppercase tracking-widest text-slate-600">Transcription Result</h3>
+                            <p className="text-sm font-bold text-slate-900">{audioFile?.name}</p>
                           </div>
                         </div>
                         <div className="flex gap-2">
                           <button 
                             onClick={copyTranscription}
-                            className="p-3 hover:bg-[#f5f5f5] border border-[#1a1a1a]/5 rounded-2xl transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+                            className="p-3 hover:bg-slate-100 border border-slate-300 rounded-lg transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700"
                             title="Copy to clipboard"
                           >
                             <Copy className="w-4 h-4" />
@@ -686,14 +733,14 @@ export default function App() {
                           </button>
                           <button 
                             onClick={() => { setTranscriptionResult(null); setTranscriptionStatus('idle'); }}
-                            className="p-3 hover:bg-[#f5f5f5] border border-[#1a1a1a]/5 rounded-2xl transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-wider opacity-60 hover:opacity-100"
+                            className="p-3 hover:bg-slate-100 border border-slate-300 rounded-lg transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-700"
                           >
                             New Transcription
                           </button>
                         </div>
                       </div>
-                      <div className="flex-1 bg-[#f9f9f9] rounded-3xl p-8 overflow-y-auto max-h-[500px] border border-[#1a1a1a]/5">
-                        <div className="text-lg leading-relaxed text-[#1a1a1a]/80 whitespace-pre-wrap font-serif italic">
+                      <div className="flex-1 bg-gradient-to-br from-slate-50 to-blue-50 rounded-lg p-8 overflow-y-auto max-h-[500px] border border-slate-200">
+                        <div className="text-lg leading-relaxed text-slate-800 whitespace-pre-wrap font-serif italic">
                           {transcriptionResult}
                         </div>
                       </div>
@@ -701,11 +748,11 @@ export default function App() {
                   )}
 
                   {transcriptionStatus === 'error' && (
-                    <div className="mt-8 p-6 bg-red-50 rounded-2xl border border-red-100 text-red-600 flex items-start gap-4">
+                    <div className="mt-8 p-6 bg-red-50 rounded-lg border border-red-200 text-red-700 flex items-start gap-4">
                       <AlertCircle className="w-6 h-6 shrink-0" />
                       <div>
                         <p className="text-sm font-bold uppercase tracking-widest mb-1">AI Service Error</p>
-                        <p className="text-sm opacity-80 leading-relaxed font-mono">{transcribeError}</p>
+                        <p className="text-sm leading-relaxed font-mono">{transcribeError}</p>
                         <button onClick={transcribeAudio} className="mt-4 text-xs font-bold underline hover:no-underline uppercase tracking-[0.2em]">Retry Operation</button>
                       </div>
                     </div>
@@ -716,19 +763,19 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        <footer className="mt-12 flex flex-col md:flex-row items-center justify-between border-t border-[#1a1a1a]/5 pt-8 gap-6 pb-12">
+        <footer className="mt-12 flex flex-col md:flex-row items-center justify-between border-t border-slate-200 pt-8 gap-6 pb-12">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-[10px] font-mono opacity-40 uppercase tracking-[0.2em] bg-white px-5 py-2.5 rounded-full border border-[#1a1a1a]/5 shadow-sm">
+            <div className="flex items-center gap-2 text-[10px] font-mono text-slate-600 uppercase tracking-[0.2em] bg-white px-5 py-2.5 rounded-full border border-slate-300 shadow-sm">
               <Info className="w-3 h-3" />
               Direct Media Pipeline
             </div>
             {activeTab === 'transcribe' && (
-              <div className="flex items-center gap-2 text-[10px] font-mono text-green-600 uppercase tracking-[0.2em] bg-green-50 px-5 py-2.5 rounded-full border border-green-100">
+              <div className="flex items-center gap-2 text-[10px] font-mono text-green-700 uppercase tracking-[0.2em] bg-green-50 px-5 py-2.5 rounded-full border border-green-200">
                 AI ACTIVE
               </div>
             )}
           </div>
-          <div className="text-[10px] font-mono opacity-30 uppercase tracking-[0.3em] text-center md:text-right">
+          <div className="text-[10px] font-mono text-slate-500 uppercase tracking-[0.3em] text-center md:text-right">
             {activeTab === 'compressor' ? 'FFMPEG.WASM ENGINE • LOCAL NODE' : 'GOOGLE GEMINI 1.5 FLASH • CLOUD NODE'}
           </div>
         </footer>

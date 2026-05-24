@@ -1,6 +1,6 @@
 {
-  "name": "ClipShrink",
-  "description": "A powerful, client-side video compressor and AI-powered audio transcriber. Direct browser compression meets Gemini-powered transcription.",
+  "name": "Ali Mesjid Studio Tool",
+  "description": "Professional media studio tool for video compression and AI-powered audio transcription. Compress videos locally with FFmpeg.wasm and transcribe audio with Google Gemini AI.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
