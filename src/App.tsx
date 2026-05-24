@@ -44,6 +44,8 @@ export default function App() {
   const [transcribeError, setTranscribeError] = useState<string | null>(null);
 
   const ffmpegRef = useRef(new FFmpeg());
+  const compressionAbortRef = useRef<AbortController | null>(null);
+  const transcriptionAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     loadFFmpeg();
@@ -105,20 +107,33 @@ export default function App() {
     const ffmpeg = ffmpegRef.current;
     const inputFileName = 'input_video';
     const outputFileName = 'output_video.mp4';
+    
+    // Create abort controller for this compression
+    compressionAbortRef.current = new AbortController();
 
     try {
       await ffmpeg.writeFile(inputFileName, await fetchFile(video));
+      
       const ffmpegArgs = [
         '-i', inputFileName,
         '-vcodec', 'libx264',
         '-crf', crf.toString(),
-        '-preset', preset,  // ultrafast, superfast, veryfast, fast
+        '-preset', preset,
         '-acodec', 'aac',
       ];
       if (scale === '720p') ffmpegArgs.push('-vf', 'scale=-2:720');
       else if (scale === '480p') ffmpegArgs.push('-vf', 'scale=-2:480');
       ffmpegArgs.push(outputFileName);
+      
       await ffmpeg.exec(ffmpegArgs);
+      
+      // Check if compression was cancelled
+      if (compressionAbortRef.current?.signal.aborted) {
+        setStatus('idle');
+        setProgress(0);
+        return;
+      }
+      
       const data = await ffmpeg.readFile(outputFileName);
       const blob = new Blob([new Uint8Array(data as ArrayBuffer)], { type: 'video/mp4' });
       const url = URL.createObjectURL(blob);
@@ -127,8 +142,26 @@ export default function App() {
       setStatus('completed');
     } catch (err) {
       console.error('Compression error:', err);
-      setStatus('error');
-      setErrorMessage('An error occurred during compression.');
+      if (compressionAbortRef.current?.signal.aborted) {
+        setStatus('idle');
+        setErrorMessage('Compression cancelled.');
+      } else {
+        setStatus('error');
+        setErrorMessage('An error occurred during compression.');
+      }
+    } finally {
+      compressionAbortRef.current = null;
+    }
+  };
+
+  const cancelCompression = () => {
+    if (compressionAbortRef.current) {
+      compressionAbortRef.current.abort();
+      const ffmpeg = ffmpegRef.current;
+      ffmpeg.exit();
+      setStatus('idle');
+      setProgress(0);
+      setErrorMessage('Compression cancelled by user.');
     }
   };
 
@@ -137,6 +170,9 @@ export default function App() {
     setTranscriptionStatus('transcribing');
     setTranscribeError(null);
 
+    // Create abort controller for this transcription
+    transcriptionAbortRef.current = new AbortController();
+
     const formData = new FormData();
     formData.append('audio', audioFile);
 
@@ -144,6 +180,7 @@ export default function App() {
       const response = await fetch('/api/transcribe', {
         method: 'POST',
         body: formData,
+        signal: transcriptionAbortRef.current.signal,
       });
 
       if (!response.ok) {
@@ -156,8 +193,23 @@ export default function App() {
       setTranscriptionStatus('completed');
     } catch (err: any) {
       console.error('Transcription error:', err);
-      setTranscriptionStatus('error');
-      setTranscribeError(err.message || 'Error communicating with Gemini AI.');
+      if (err.name === 'AbortError') {
+        setTranscriptionStatus('idle');
+        setTranscribeError('Transcription cancelled by user.');
+      } else {
+        setTranscriptionStatus('error');
+        setTranscribeError(err.message || 'Error communicating with Gemini AI.');
+      }
+    } finally {
+      transcriptionAbortRef.current = null;
+    }
+  };
+
+  const cancelTranscription = () => {
+    if (transcriptionAbortRef.current) {
+      transcriptionAbortRef.current.abort();
+      setTranscriptionStatus('idle');
+      setTranscribeError('Transcription cancelled by user.');
     }
   };
 
@@ -298,14 +350,24 @@ export default function App() {
                         <div className="text-sm">{errorMessage}</div>
                       </div>
                     )}
-                    <button 
-                      disabled={!video || !loaded || status === 'compressing'}
-                      onClick={compressVideo} 
-                      className="w-full bg-[#1a1a1a] text-white py-5 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-[#333] transition-all disabled:opacity-20"
-                    >
-                      {status === 'compressing' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
-                      {status === 'compressing' ? 'SHRINKING...' : 'START COMPRESSION'}
-                    </button>
+                    <div className="flex gap-3">
+                      <button 
+                        disabled={!video || !loaded || status === 'compressing'}
+                        onClick={compressVideo} 
+                        className="flex-1 bg-[#1a1a1a] text-white py-5 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-[#333] transition-all disabled:opacity-20"
+                      >
+                        {status === 'compressing' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                        {status === 'compressing' ? 'SHRINKING...' : 'START COMPRESSION'}
+                      </button>
+                      {status === 'compressing' && (
+                        <button 
+                          onClick={cancelCompression}
+                          className="px-6 bg-red-500 text-white py-5 rounded-2xl font-bold hover:bg-red-600 transition-all"
+                        >
+                          CANCEL
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {status === 'completed' && outputUrl && (
@@ -365,15 +427,28 @@ export default function App() {
                         <input type="file" className="hidden" accept="audio/*" onChange={handleAudioChange} />
                       </label>
                       {audioFile && (
-                        <motion.button 
-                          initial={{ opacity: 0, scale: 0.9 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          onClick={transcribeAudio}
-                          className="mt-12 bg-[#1a1a1a] text-white px-12 py-5 rounded-2xl font-bold flex items-center gap-4 hover:bg-[#333] transition-all shadow-xl shadow-[#1a1a1a]/20"
-                        >
-                          <MessageSquare className="w-5 h-5" />
-                          TRANSCRIBE WITH GEMINI AI
-                        </motion.button>
+                        <div className="flex gap-3 mt-12">
+                          <motion.button 
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            onClick={transcribeAudio}
+                            disabled={transcriptionStatus === 'transcribing'}
+                            className="flex-1 bg-[#1a1a1a] text-white px-12 py-5 rounded-2xl font-bold flex items-center justify-center gap-4 hover:bg-[#333] transition-all shadow-xl shadow-[#1a1a1a]/20 disabled:opacity-50"
+                          >
+                            <MessageSquare className="w-5 h-5" />
+                            {transcriptionStatus === 'transcribing' ? 'TRANSCRIBING...' : 'TRANSCRIBE WITH GEMINI AI'}
+                          </motion.button>
+                          {transcriptionStatus === 'transcribing' && (
+                            <motion.button 
+                              initial={{ opacity: 0, scale: 0.9 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              onClick={cancelTranscription}
+                              className="px-6 bg-red-500 text-white py-5 rounded-2xl font-bold hover:bg-red-600 transition-all"
+                            >
+                              CANCEL
+                            </motion.button>
+                          )}
+                        </div>
                       )}
                     </div>
                   ) : transcriptionStatus === 'transcribing' ? (
@@ -390,6 +465,14 @@ export default function App() {
                       </div>
                       <h2 className="text-3xl font-semibold tracking-tight mb-2">Gemini is Listening...</h2>
                       <p className="text-sm opacity-50 font-mono max-w-sm tracking-wide uppercase">Processing audio waves into text data via Google GenAI</p>
+                      <motion.button 
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        onClick={cancelTranscription}
+                        className="mt-8 px-8 bg-red-500 text-white py-4 rounded-2xl font-bold hover:bg-red-600 transition-all"
+                      >
+                        CANCEL TRANSCRIPTION
+                      </motion.button>
                     </div>
                   ) : (
                     <div className="flex-1 flex flex-col h-full animate-in fade-in slide-in-from-bottom-4 duration-500">
