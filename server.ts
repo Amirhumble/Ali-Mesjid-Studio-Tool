@@ -12,13 +12,12 @@ const PORT = 3000;
 
 // Initialize Gemini
 // Note: process.env.GEMINI_API_KEY is automatically injected by AI Studio.
+if (!process.env.GEMINI_API_KEY) {
+  console.warn('⚠️  GEMINI_API_KEY not set. Transcription will not work.');
+}
+
 const ai = new GoogleGenAI({
-  apiKey: process.env.GEMINI_API_KEY!,
-  httpOptions: {
-    headers: {
-      'User-Agent': 'aistudio-build',
-    }
-  }
+  apiKey: process.env.GEMINI_API_KEY || 'dummy-key',
 });
 
 // Use memory storage for multer to handle direct uploads
@@ -36,6 +35,10 @@ app.get("/api/health", (req, res) => {
 
 app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
   try {
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: "Gemini API key not configured. Please set GEMINI_API_KEY environment variable." });
+    }
+
     if (!req.file) {
       return res.status(400).json({ error: "No audio file uploaded" });
     }

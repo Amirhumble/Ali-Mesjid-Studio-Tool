@@ -7,16 +7,13 @@ import {
   Play, 
   Download, 
   RefreshCw, 
-  CheckCircle2, 
   AlertCircle,
   Film,
-  HardDrive,
   Info,
   Mic,
   MessageSquare,
   FileAudio,
   Type,
-  ChevronRight,
   Copy
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -122,7 +119,7 @@ export default function App() {
       ffmpegArgs.push(outputFileName);
       await ffmpeg.exec(ffmpegArgs);
       const data = await ffmpeg.readFile(outputFileName);
-      const blob = new Blob([(data as Uint8Array).buffer], { type: 'video/mp4' });
+      const blob = new Blob([new Uint8Array(data as ArrayBuffer)], { type: 'video/mp4' });
       const url = URL.createObjectURL(blob);
       setOutputUrl(url);
       setCompressedSize(blob.size);
@@ -230,7 +227,7 @@ export default function App() {
               <div className="lg:col-span-7 flex flex-col gap-6">
                 {!video ? (
                   <label className="group relative flex flex-col items-center justify-center w-full aspect-video border-2 border-dashed border-[#1a1a1a]/10 rounded-3xl cursor-pointer hover:bg-white hover:border-[#1a1a1a]/30 transition-all duration-500 overflow-hidden">
-                    <div className="absolute inset-0 bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] [background-size:20px_20px] opacity-[0.03]" />
+                    <div className="absolute inset-0 bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] bg-size-[20px_20px] opacity-[0.03]" />
                     <Upload className="w-12 h-12 mb-4 opacity-20 group-hover:opacity-100 transition-opacity" />
                     <p className="text-xl font-medium">Drop Video File</p>
                     <p className="text-xs opacity-50 font-mono mt-2">MP4, MOV up to 2GB</p>
@@ -285,6 +282,12 @@ export default function App() {
                         ))}
                       </div>
                     </div>
+                    {errorMessage && (
+                      <div className="p-4 bg-red-50 rounded-2xl border border-red-100 text-red-600 flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                        <div className="text-sm">{errorMessage}</div>
+                      </div>
+                    )}
                     <button 
                       disabled={!video || !loaded || status === 'compressing'}
                       onClick={compressVideo} 
@@ -328,8 +331,8 @@ export default function App() {
                 <div className="bg-white rounded-3xl p-8 lg:p-12 shadow-sm border border-[#1a1a1a]/5 min-h-[400px] flex flex-col">
                   {!transcriptionResult && transcriptionStatus !== 'transcribing' ? (
                     <div className="flex-1 flex flex-col items-center justify-center">
-                      <label className="group relative flex flex-col items-center justify-center w-full max-w-xl aspect-[21/9] border-2 border-dashed border-[#1a1a1a]/10 rounded-3xl cursor-pointer hover:bg-[#f5f5f5] hover:border-[#1a1a1a]/30 transition-all duration-500 overflow-hidden">
-                        <div className="absolute inset-0 bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] [background-size:20px_20px] opacity-[0.03]" />
+                      <label className="group relative flex flex-col items-center justify-center w-full max-w-xl aspect-21/9 border-2 border-dashed border-[#1a1a1a]/10 rounded-3xl cursor-pointer hover:bg-[#f5f5f5] hover:border-[#1a1a1a]/30 transition-all duration-500 overflow-hidden">
+                        <div className="absolute inset-0 bg-[radial-gradient(#1a1a1a_1px,transparent_1px)] bg-size-[20px_20px] opacity-[0.03]" />
                         {audioFile ? (
                           <div className="flex flex-col items-center">
                             <FileAudio className="w-12 h-12 mb-4 text-[#1a1a1a]/40" />
@@ -417,7 +420,7 @@ export default function App() {
 
                   {transcriptionStatus === 'error' && (
                     <div className="mt-8 p-6 bg-red-50 rounded-2xl border border-red-100 text-red-600 flex items-start gap-4">
-                      <AlertCircle className="w-6 h-6 flex-shrink-0" />
+                      <AlertCircle className="w-6 h-6 shrink-0" />
                       <div>
                         <p className="text-sm font-bold uppercase tracking-widest mb-1">AI Service Error</p>
                         <p className="text-sm opacity-80 leading-relaxed font-mono">{transcribeError}</p>
