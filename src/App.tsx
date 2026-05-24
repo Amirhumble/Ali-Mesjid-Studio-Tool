@@ -44,7 +44,6 @@ export default function App() {
   const [transcribeError, setTranscribeError] = useState<string | null>(null);
 
   const ffmpegRef = useRef(new FFmpeg());
-  const compressionAbortRef = useRef<AbortController | null>(null);
   const transcriptionAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -107,9 +106,6 @@ export default function App() {
     const ffmpeg = ffmpegRef.current;
     const inputFileName = 'input_video';
     const outputFileName = 'output_video.mp4';
-    
-    // Create abort controller for this compression
-    compressionAbortRef.current = new AbortController();
 
     try {
       await ffmpeg.writeFile(inputFileName, await fetchFile(video));
@@ -127,13 +123,6 @@ export default function App() {
       
       await ffmpeg.exec(ffmpegArgs);
       
-      // Check if compression was cancelled
-      if (compressionAbortRef.current?.signal.aborted) {
-        setStatus('idle');
-        setProgress(0);
-        return;
-      }
-      
       const data = await ffmpeg.readFile(outputFileName);
       const blob = new Blob([new Uint8Array(data as ArrayBuffer)], { type: 'video/mp4' });
       const url = URL.createObjectURL(blob);
@@ -142,26 +131,8 @@ export default function App() {
       setStatus('completed');
     } catch (err) {
       console.error('Compression error:', err);
-      if (compressionAbortRef.current?.signal.aborted) {
-        setStatus('idle');
-        setErrorMessage('Compression cancelled.');
-      } else {
-        setStatus('error');
-        setErrorMessage('An error occurred during compression.');
-      }
-    } finally {
-      compressionAbortRef.current = null;
-    }
-  };
-
-  const cancelCompression = () => {
-    if (compressionAbortRef.current) {
-      compressionAbortRef.current.abort();
-      const ffmpeg = ffmpegRef.current;
-      ffmpeg.exit();
-      setStatus('idle');
-      setProgress(0);
-      setErrorMessage('Compression cancelled by user.');
+      setStatus('error');
+      setErrorMessage('An error occurred during compression.');
     }
   };
 
@@ -350,24 +321,14 @@ export default function App() {
                         <div className="text-sm">{errorMessage}</div>
                       </div>
                     )}
-                    <div className="flex gap-3">
-                      <button 
-                        disabled={!video || !loaded || status === 'compressing'}
-                        onClick={compressVideo} 
-                        className="flex-1 bg-[#1a1a1a] text-white py-5 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-[#333] transition-all disabled:opacity-20"
-                      >
-                        {status === 'compressing' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
-                        {status === 'compressing' ? 'SHRINKING...' : 'START COMPRESSION'}
-                      </button>
-                      {status === 'compressing' && (
-                        <button 
-                          onClick={cancelCompression}
-                          className="px-6 bg-red-500 text-white py-5 rounded-2xl font-bold hover:bg-red-600 transition-all"
-                        >
-                          CANCEL
-                        </button>
-                      )}
-                    </div>
+                    <button 
+                      disabled={!video || !loaded || status === 'compressing'}
+                      onClick={compressVideo} 
+                      className="w-full bg-[#1a1a1a] text-white py-5 rounded-2xl font-bold flex items-center justify-center gap-3 hover:bg-[#333] transition-all disabled:opacity-20"
+                    >
+                      {status === 'compressing' ? <RefreshCw className="w-5 h-5 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
+                      {status === 'compressing' ? 'SHRINKING...' : 'START COMPRESSION'}
+                    </button>
                   </div>
 
                   {status === 'completed' && outputUrl && (
