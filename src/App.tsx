@@ -14,13 +14,33 @@ import {
   MessageSquare,
   FileAudio,
   Type,
-  Copy
+  Copy,
+  Clock,
+  Trash2,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 type CompressionStatus = 'idle' | 'loading' | 'compressing' | 'completed' | 'error';
 type TranscriptionStatus = 'idle' | 'uploading' | 'transcribing' | 'completed' | 'error';
 type AppTab = 'compressor' | 'transcribe';
+
+type CompressionHistory = {
+  id: string;
+  fileName: string;
+  originalSize: number;
+  compressedSize: number;
+  compression: number;
+  timestamp: number;
+  downloadUrl: string;
+};
+
+type TranscriptionHistory = {
+  id: string;
+  fileName: string;
+  transcription: string;
+  timestamp: number;
+};
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('compressor');
@@ -43,11 +63,17 @@ export default function App() {
   const [transcriptionResult, setTranscriptionResult] = useState<string | null>(null);
   const [transcribeError, setTranscribeError] = useState<string | null>(null);
 
+  // History State
+  const [compressionHistory, setCompressionHistory] = useState<CompressionHistory[]>([]);
+  const [transcriptionHistory, setTranscriptionHistory] = useState<TranscriptionHistory[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+
   const ffmpegRef = useRef(new FFmpeg());
   const transcriptionAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     loadFFmpeg();
+    loadHistory();
   }, []);
 
   const loadFFmpeg = async () => {
@@ -71,11 +97,74 @@ export default function App() {
       setLoaded(true);
     } catch (err) {
       console.error('Failed to load ffmpeg', err);
-      // We only alert if they are actually in the compressor tab
       if (activeTab === 'compressor') {
         setErrorMessage('Failed to load FFmpeg. Check your internet connection.');
       }
     }
+  };
+
+  const loadHistory = () => {
+    try {
+      const savedCompressionHistory = localStorage.getItem('compressionHistory');
+      const savedTranscriptionHistory = localStorage.getItem('transcriptionHistory');
+      
+      if (savedCompressionHistory) {
+        setCompressionHistory(JSON.parse(savedCompressionHistory));
+      }
+      if (savedTranscriptionHistory) {
+        setTranscriptionHistory(JSON.parse(savedTranscriptionHistory));
+      }
+    } catch (err) {
+      console.error('Error loading history:', err);
+    }
+  };
+
+  const saveCompressionToHistory = (fileName: string, originalSize: number, compressedSize: number, downloadUrl: string) => {
+    const newEntry: CompressionHistory = {
+      id: Date.now().toString(),
+      fileName,
+      originalSize,
+      compressedSize,
+      compression: Math.round(((originalSize - compressedSize) / originalSize) * 100),
+      timestamp: Date.now(),
+      downloadUrl,
+    };
+    
+    const updated = [newEntry, ...compressionHistory].slice(0, 20); // Keep last 20
+    setCompressionHistory(updated);
+    localStorage.setItem('compressionHistory', JSON.stringify(updated));
+  };
+
+  const saveTranscriptionToHistory = (fileName: string, transcription: string) => {
+    const newEntry: TranscriptionHistory = {
+      id: Date.now().toString(),
+      fileName,
+      transcription,
+      timestamp: Date.now(),
+    };
+    
+    const updated = [newEntry, ...transcriptionHistory].slice(0, 20); // Keep last 20
+    setTranscriptionHistory(updated);
+    localStorage.setItem('transcriptionHistory', JSON.stringify(updated));
+  };
+
+  const deleteCompressionHistory = (id: string) => {
+    const updated = compressionHistory.filter(item => item.id !== id);
+    setCompressionHistory(updated);
+    localStorage.setItem('compressionHistory', JSON.stringify(updated));
+  };
+
+  const deleteTranscriptionHistory = (id: string) => {
+    const updated = transcriptionHistory.filter(item => item.id !== id);
+    setTranscriptionHistory(updated);
+    localStorage.setItem('transcriptionHistory', JSON.stringify(updated));
+  };
+
+  const clearAllHistory = () => {
+    setCompressionHistory([]);
+    setTranscriptionHistory([]);
+    localStorage.removeItem('compressionHistory');
+    localStorage.removeItem('transcriptionHistory');
   };
 
   const handleVideoChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -129,6 +218,9 @@ export default function App() {
       setOutputUrl(url);
       setCompressedSize(blob.size);
       setStatus('completed');
+      
+      // Save to history
+      saveCompressionToHistory(video.name, video.size, blob.size, url);
     } catch (err) {
       console.error('Compression error:', err);
       setStatus('error');
@@ -162,6 +254,11 @@ export default function App() {
       const data = await response.json();
       setTranscriptionResult(data.transcription);
       setTranscriptionStatus('completed');
+      
+      // Save to history
+      if (audioFile) {
+        saveTranscriptionToHistory(audioFile.name, data.transcription);
+      }
     } catch (err: any) {
       console.error('Transcription error:', err);
       if (err.name === 'AbortError') {
@@ -216,27 +313,158 @@ export default function App() {
           </div>
           
           {/* Navigation Tabs */}
-          <nav className="flex bg-white p-1.5 rounded-2xl border border-[#1a1a1a]/5 self-start md:self-end">
+          <div className="flex gap-4 items-center self-start md:self-end">
+            <nav className="flex bg-white p-1.5 rounded-2xl border border-[#1a1a1a]/5">
+              <button 
+                onClick={() => setActiveTab('compressor')}
+                className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
+                  activeTab === 'compressor' ? 'bg-[#1a1a1a] text-white' : 'hover:bg-[#f5f5f5] opacity-50 hover:opacity-100'
+                }`}
+              >
+                <Film className="w-4 h-4" />
+                Compressor
+              </button>
+              <button 
+                onClick={() => setActiveTab('transcribe')}
+                className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
+                  activeTab === 'transcribe' ? 'bg-[#1a1a1a] text-white' : 'hover:bg-[#f5f5f5] opacity-50 hover:opacity-100'
+                }`}
+              >
+                <Mic className="w-4 h-4" />
+                Transcriber
+              </button>
+            </nav>
             <button 
-              onClick={() => setActiveTab('compressor')}
-              className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
-                activeTab === 'compressor' ? 'bg-[#1a1a1a] text-white' : 'hover:bg-[#f5f5f5] opacity-50 hover:opacity-100'
-              }`}
+              onClick={() => setShowHistory(!showHistory)}
+              className="px-4 py-2.5 bg-white rounded-2xl border border-[#1a1a1a]/5 hover:bg-[#f5f5f5] transition-all flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+              title="View history"
             >
-              <Film className="w-4 h-4" />
-              Compressor
+              <Clock className="w-4 h-4" />
+              History
             </button>
-            <button 
-              onClick={() => setActiveTab('transcribe')}
-              className={`px-6 py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all duration-300 flex items-center gap-2 ${
-                activeTab === 'transcribe' ? 'bg-[#1a1a1a] text-white' : 'hover:bg-[#f5f5f5] opacity-50 hover:opacity-100'
-              }`}
-            >
-              <Mic className="w-4 h-4" />
-              Transcriber
-            </button>
-          </nav>
+          </div>
         </header>
+
+        {/* History Modal */}
+        {showHistory && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-[#1a1a1a]/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={() => setShowHistory(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-3xl p-8 max-w-2xl w-full max-h-[80vh] overflow-y-auto shadow-2xl"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <Clock className="w-6 h-6" />
+                  <h2 className="text-2xl font-bold">History</h2>
+                </div>
+                <button 
+                  onClick={() => setShowHistory(false)}
+                  className="p-2 hover:bg-[#f5f5f5] rounded-xl transition-all"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {compressionHistory.length === 0 && transcriptionHistory.length === 0 ? (
+                <p className="text-center text-[#1a1a1a]/50 py-8">No history yet. Start compressing videos or transcribing audio!</p>
+              ) : (
+                <>
+                  {compressionHistory.length > 0 && (
+                    <div className="mb-8">
+                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <Film className="w-5 h-5" />
+                        Compression History
+                      </h3>
+                      <div className="space-y-3">
+                        {compressionHistory.map((item) => (
+                          <div key={item.id} className="bg-[#f5f5f5] p-4 rounded-2xl flex items-center justify-between">
+                            <div className="flex-1">
+                              <p className="font-semibold text-sm truncate">{item.fileName}</p>
+                              <p className="text-xs text-[#1a1a1a]/50 mt-1">
+                                {formatSize(item.originalSize)} → {formatSize(item.compressedSize)} ({item.compression}% saved)
+                              </p>
+                              <p className="text-xs text-[#1a1a1a]/40 mt-1">
+                                {new Date(item.timestamp).toLocaleString()}
+                              </p>
+                            </div>
+                            <div className="flex gap-2 ml-4">
+                              <a 
+                                href={item.downloadUrl} 
+                                download={`shrunken_${item.fileName}`}
+                                className="p-2 bg-[#1a1a1a] text-white rounded-xl hover:bg-[#333] transition-all"
+                                title="Download"
+                              >
+                                <Download className="w-4 h-4" />
+                              </a>
+                              <button 
+                                onClick={() => deleteCompressionHistory(item.id)}
+                                className="p-2 bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition-all"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {transcriptionHistory.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                        <Mic className="w-5 h-5" />
+                        Transcription History
+                      </h3>
+                      <div className="space-y-3">
+                        {transcriptionHistory.map((item) => (
+                          <div key={item.id} className="bg-[#f5f5f5] p-4 rounded-2xl">
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex-1">
+                                <p className="font-semibold text-sm truncate">{item.fileName}</p>
+                                <p className="text-xs text-[#1a1a1a]/40 mt-1">
+                                  {new Date(item.timestamp).toLocaleString()}
+                                </p>
+                              </div>
+                              <button 
+                                onClick={() => deleteTranscriptionHistory(item.id)}
+                                className="p-2 bg-red-100 text-red-600 rounded-xl hover:bg-red-200 transition-all"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                            <p className="text-sm text-[#1a1a1a]/70 mt-3 p-3 bg-white rounded-xl max-h-[100px] overflow-y-auto">
+                              {item.transcription}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(compressionHistory.length > 0 || transcriptionHistory.length > 0) && (
+                    <button 
+                      onClick={clearAllHistory}
+                      className="w-full mt-6 px-4 py-3 bg-red-100 text-red-600 rounded-2xl font-bold hover:bg-red-200 transition-all text-sm uppercase tracking-wider"
+                    >
+                      Clear All History
+                    </button>
+                  )}
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
 
         <AnimatePresence mode="wait">
           {activeTab === 'compressor' ? (
