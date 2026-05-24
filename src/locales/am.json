@@ -1,0 +1,61 @@
+{
+  "app": {
+    "title": "ዓሊ መስጂድ",
+    "subtitle": "ስቱዲዮ መሣሪያ",
+    "logo_alt": "የዓሊ መስጂድ ስቱዲዮ መሣሪያ አርማ",
+    "compressor": "ማሳነሻ",
+    "transcriber": "ጽሑፍ ቀያሪ",
+    "history": "ታሪክ"
+  },
+  "compressor": {
+    "drop_file": "የቪዲዮ ፋይል እዚህ ይጣሉ",
+    "file_hint": "MP4, MOV እስከ 2GB",
+    "settings": "የማሳነሻ ቅንብሮች",
+    "target_quality": "የታለመ ጥራት",
+    "source": "ምንጭ",
+    "lite": "ቀላል",
+    "compression_speed": "የማሳነሻ ፍጥነት",
+    "resolution": "ጥራት",
+    "shrinking": "በማሳነስ ላይ...",
+    "start_compression": "ማሳነስ ጀምር",
+    "shrunk_to": "ቀንሷል ወደ",
+    "savings": "ቁጠባ",
+    "download_mp4": "MP4 አውርድ",
+    "clear": "አጽዳ",
+    "compressing": "በማሳነስ ላይ",
+    "speed_hint": "ፈጣን = ፈጣን ሂደት"
+  },
+  "transcriber": {
+    "select_file": "የድምጽ ፋይል ይምረጡ",
+    "file_hint": "MP3, WAV, AAC, ወዘተ.",
+    "transcribe_ai": "በጄሚኒ AI ወደ ጽሑፍ ቀይር",
+    "transcribing": "ወደ ጽሑፍ በመቀየር ላይ...",
+    "cancel": "ሰርዝ",
+    "gemini_listening": "ጄሚኒ እየሰማ ነው...",
+    "gemini_hint": "በGoogle GenAI አማካኝነት የድምፅ ሞገዶችን ወደ ጽሑፍ ዳታ በመለወጥ ላይ",
+    "cancel_transcription": "መቀየርን አቁም",
+    "result": "የጽሑፍ ውጤት",
+    "copy": "ገልብጥ",
+    "new_transcription": "አዲስ ቅየራ",
+    "error_title": "የAI አገልግሎት ስህተት",
+    "retry": "እንደገና ሞክር"
+  },
+  "history": {
+    "title": "ታሪክ",
+    "no_history": "እስካሁን ምንም ታሪክ የለም",
+    "no_history_hint": "ታሪክዎን እዚህ ለማየት ቪዲዮዎችን ማሳነስ ወይም ድምጽን ወደ ጽሑፍ መቀየር ይጀምሩ",
+    "compression_history": "የማሳነሻ ታሪክ",
+    "transcription_history": "የጽሑፍ ቅየራ ታሪክ",
+    "clear_all": "ሁሉንም ታሪክ አጽዳ",
+    "saved": "ተቆጥቧል"
+  },
+  "footer": {
+    "direct_media": "ቀጥታ የሚዲያ መስመር",
+    "ai_active": "AI ንቁ ነው",
+    "ffmpeg_engine": "FFMPEG.WASM ሞተር • አካባቢያዊ ኖድ",
+    "gemini_engine": "GOOGLE GEMINI 1.5 FLASH • ደመና ኖድ"
+  },
+  "common": {
+    "error": "ስህተት"
+  }
+}

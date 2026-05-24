@@ -1,0 +1,61 @@
+{
+  "app": {
+    "title": "Ali Mesjid",
+    "subtitle": "Studio Tool",
+    "logo_alt": "Ali Mesjid Studio Tool Logo",
+    "compressor": "Compressor",
+    "transcriber": "Transcriber",
+    "history": "History"
+  },
+  "compressor": {
+    "drop_file": "Drop Video File",
+    "file_hint": "MP4, MOV up to 2GB",
+    "settings": "Compression Settings",
+    "target_quality": "Target Quality",
+    "source": "Source",
+    "lite": "Lite",
+    "compression_speed": "Compression Speed",
+    "resolution": "Resolution",
+    "shrinking": "SHRINKING...",
+    "start_compression": "START COMPRESSION",
+    "shrunk_to": "Shrunk to",
+    "savings": "Savings",
+    "download_mp4": "DOWNLOAD MP4",
+    "clear": "Clear",
+    "compressing": "Compressing",
+    "speed_hint": "Faster = Quicker Encoding"
+  },
+  "transcriber": {
+    "select_file": "Select Audio File",
+    "file_hint": "MP3, WAV, AAC, etc.",
+    "transcribe_ai": "TRANSCRIBE WITH GEMINI AI",
+    "transcribing": "TRANSCRIBING...",
+    "cancel": "CANCEL",
+    "gemini_listening": "Gemini is Listening...",
+    "gemini_hint": "Processing audio waves into text data via Google GenAI",
+    "cancel_transcription": "CANCEL TRANSCRIPTION",
+    "result": "Transcription Result",
+    "copy": "Copy",
+    "new_transcription": "New Transcription",
+    "error_title": "AI Service Error",
+    "retry": "Retry Operation"
+  },
+  "history": {
+    "title": "History",
+    "no_history": "No history yet",
+    "no_history_hint": "Start compressing videos or transcribing audio to see your history here",
+    "compression_history": "Compression History",
+    "transcription_history": "Transcription History",
+    "clear_all": "Clear All History",
+    "saved": "saved"
+  },
+  "footer": {
+    "direct_media": "Direct Media Pipeline",
+    "ai_active": "AI ACTIVE",
+    "ffmpeg_engine": "FFMPEG.WASM ENGINE • LOCAL NODE",
+    "gemini_engine": "GOOGLE GEMINI 1.5 FLASH • CLOUD NODE"
+  },
+  "common": {
+    "error": "Error"
+  }
+}
