@@ -20,6 +20,7 @@ import {
   X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
+import clipShrinkLogo from './assets/clipShrinkLogo.jpg';
 
 type CompressionStatus = 'idle' | 'loading' | 'compressing' | 'completed' | 'error';
 type TranscriptionStatus = 'idle' | 'uploading' | 'transcribing' | 'completed' | 'error';
@@ -303,9 +304,11 @@ export default function App() {
           <div className="flex items-center justify-between">
             {/* Logo */}
             <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg">
-                <Film className="w-6 h-6 text-white" />
-              </div>
+              <img 
+                src={clipShrinkLogo} 
+                alt="Ali Mesjid Studio Tool Logo" 
+                className="w-12 h-12 rounded-xl shadow-lg object-cover"
+              />
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent">Ali Mesjid</h1>
                 <p className="text-xs text-slate-500 font-medium">Studio Tool</p>
@@ -401,9 +404,11 @@ export default function App() {
             >
               <div className="flex items-center justify-between mb-8">
                 <div className="flex items-center gap-3">
-                  <div className="p-2.5 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg">
-                    <Clock className="w-5 h-5 text-white" />
-                  </div>
+                  <img 
+                    src={clipShrinkLogo} 
+                    alt="Ali Mesjid Studio Tool Logo" 
+                    className="w-10 h-10 rounded-lg shadow-md object-cover"
+                  />
                   <h2 className="text-2xl font-bold text-slate-900">History</h2>
                 </div>
                 <button 
