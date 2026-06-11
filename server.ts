@@ -1,13 +1,15 @@
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import multer from "multer";
 import dotenv from "dotenv";
 
 dotenv.config();
 
 const app = express();
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
 const PORT = 3000;
 
 // Initialize Gemini
@@ -70,6 +72,97 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
   } catch (error: any) {
     console.error("Transcription error:", error);
     res.status(500).json({ error: error.message || "Failed to transcribe audio" });
+  }
+});
+
+// AI-generated captions endpoint used by Subtitle Studio
+app.post("/api/generate-captions", async (req, res) => {
+  try {
+    const { fileData, mimeType, instructionHint } = req.body;
+
+    if (!fileData || !mimeType) {
+      return res.status(400).json({ error: "Missing fileData (base64) or mimeType parameters." });
+    }
+
+    if (!process.env.GEMINI_API_KEY) {
+      return res.status(500).json({ error: "Gemini API key not configured. Please set GEMINI_API_KEY environment variable." });
+    }
+
+    const ai = new GoogleGenAI({
+      apiKey: process.env.GEMINI_API_KEY,
+      httpOptions: {
+        headers: {
+          "User-Agent": "aistudio-build",
+        },
+      },
+    });
+
+    const customHintText = instructionHint ? ` Additional Hint from user: ${instructionHint}` : "";
+    const promptText = `Analyze the speech in this audio or video file.
+1. Transcribe the spoken words accurately.
+2. Group the transcribed speech into subtitle blocks.
+3. Provide precise 'start' and 'end' timestamps in seconds for each block.
+4. Return each object with id, start, end, original, and amharic fields.
+${customHintText}`;
+
+    // Retry logic for robust AI communication
+    const maxRetries = 3;
+    let attempt = 0;
+    let lastError: any = null;
+
+    while (attempt < maxRetries) {
+      try {
+        const response = await ai.models.generateContent({
+          model: "gemini-1.5-flash",
+          contents: [
+            {
+              inlineData: {
+                mimeType,
+                data: fileData,
+              },
+            },
+            promptText,
+          ],
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  id: { type: Type.INTEGER },
+                  start: { type: Type.NUMBER },
+                  end: { type: Type.NUMBER },
+                  original: { type: Type.STRING },
+                  amharic: { type: Type.STRING },
+                },
+                required: ["id", "start", "end", "original", "amharic"],
+              },
+            },
+          },
+        });
+
+        const captions = JSON.parse(response.text.trim());
+        return res.json({ captions });
+      } catch (error: any) {
+        lastError = error;
+        const isRetryable = error.status === 503 || error.status === 429 || error.message?.includes("high demand") || error.message?.includes("429");
+        
+        if (isRetryable && attempt < maxRetries - 1) {
+          attempt++;
+          const delay = Math.pow(2, attempt) * 1000;
+          console.warn(`Gemini API busy (Attempt ${attempt}/${maxRetries}). Retrying in ${delay}ms...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        break;
+      }
+    }
+
+    throw lastError;
+  } catch (error: any) {
+    console.error("Generate captions error:", error);
+    return res.status(500).json({ error: error.message || "Failed to generate captions." });
   }
 });
 

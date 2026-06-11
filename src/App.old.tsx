@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, ChangeEvent } from 'react';
+import { useState, useRef, useEffect, ChangeEvent } from 'react';
 import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 import { useTranslation } from 'react-i18next';
@@ -19,22 +19,14 @@ import {
   Clock,
   Trash2,
   X,
-  Languages,
-  Video,
+  Languages
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import clipShrinkLogo from './assets/clipShrinkLogo.jpg';
-import SubtitleStudio from './features/captioning/pages/SubtitleStudio';
 
 type CompressionStatus = 'idle' | 'loading' | 'compressing' | 'completed' | 'error';
 type TranscriptionStatus = 'idle' | 'uploading' | 'transcribing' | 'completed' | 'error';
-type AppTab = 'compressor' | 'transcribe' | 'subtitleStudio';
-
-type VideoMetadata = {
-  duration: number;
-  width: number;
-  height: number;
-};
+type AppTab = 'compressor' | 'transcribe';
 
 type CompressionHistory = {
   id: string;
@@ -68,16 +60,12 @@ export default function App() {
   const [crf, setCrf] = useState(28);
   const [scale, setScale] = useState('original');
   const [preset, setPreset] = useState<'ultrafast' | 'superfast' | 'veryfast' | 'fast'>('ultrafast');
-  const [videoMetadata, setVideoMetadata] = useState<VideoMetadata | null>(null);
-  const [initialEstimate, setInitialEstimate] = useState<number | null>(null);
 
   // Transcriber State
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [transcriptionStatus, setTranscriptionStatus] = useState<TranscriptionStatus>('idle');
   const [transcriptionResult, setTranscriptionResult] = useState<string | null>(null);
   const [transcribeError, setTranscribeError] = useState<string | null>(null);
-
-  const isTranscribing = transcriptionStatus === 'transcribing';
 
   // History State
   const [compressionHistory, setCompressionHistory] = useState<CompressionHistory[]>([]);
@@ -206,7 +194,6 @@ export default function App() {
 
   const compressVideo = async () => {
     if (!video || !loaded) return;
-    setInitialEstimate(estimatedSize);
     setStatus('compressing');
     setProgress(0);
     const ffmpeg = ffmpegRef.current;
@@ -312,64 +299,6 @@ export default function App() {
     }
   };
 
-  // Compression Estimation Logic
-  const estimatedSize = useMemo(() => {
-    if (!video || !videoMetadata) return null;
-
-    const { duration, width, height } = videoMetadata;
-    
-    // Base Bitrate Calculation (Heuristic)
-    // 4 Mbps for 1080p @ 30fps with CRF 23
-    const baseBitrate = 4000000; 
-    
-    // Resolution Factor
-    let targetW = width;
-    let targetH = height;
-    if (scale === '720p' && height > 720) {
-      targetH = 720;
-      targetW = (width * 720) / height;
-    } else if (scale === '480p' && height > 480) {
-      targetH = 480;
-      targetW = (width * 480) / height;
-    }
-    const resolutionFactor = (targetW * targetH) / (1920 * 1080);
-    
-    // CRF Factor: Every +6 CRF roughly halves the bitrate
-    const crfFactor = Math.pow(2, (23 - crf) / 6);
-    
-    // Preset Factor
-    const presetMultipliers = {
-      ultrafast: 1.35,
-      superfast: 1.25,
-      veryfast: 1.15,
-      fast: 1.05
-    };
-    const presetFactor = presetMultipliers[preset];
-    
-    // Audio: ~128 kbps
-    const audioBitrate = 128000;
-    
-    const estBitrate = baseBitrate * resolutionFactor * crfFactor * presetFactor;
-    const totalBytes = ((estBitrate + audioBitrate) * duration) / 8;
-    
-    // Cap at 95% of original size if it seems it will be larger
-    return Math.min(totalBytes, video.size * 0.95);
-  }, [video, videoMetadata, crf, scale, preset]);
-
-  const qualityLabel = useMemo(() => {
-    if (crf <= 21) return t('compressor.quality_excellent');
-    if (crf <= 26) return t('compressor.quality_high');
-    if (crf <= 31) return t('compressor.quality_medium');
-    return t('compressor.quality_low');
-  }, [crf, t]);
-
-  const presetGuidance = useMemo(() => {
-    if (crf <= 21) return t('compressor.preset_guidance_original');
-    if (crf <= 26) return t('compressor.preset_guidance_high');
-    if (crf <= 31) return t('compressor.preset_guidance_balanced');
-    return t('compressor.preset_guidance_smaller');
-  }, [crf, t]);
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 text-slate-900 font-sans selection:bg-blue-600 selection:text-white">
       {/* Mobile-First Responsive Navigation Bar */}
@@ -439,17 +368,6 @@ export default function App() {
               <Mic className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" />
               {t('app.transcriber')}
             </button>
-            <button 
-              onClick={() => setActiveTab('subtitleStudio')}
-              className={`px-4 md:px-5 lg:px-6 py-2.5 md:py-3 rounded-lg text-xs md:text-sm font-semibold transition-all duration-300 flex items-center justify-center gap-2 h-11 md:h-12 lg:h-13 touch-manipulation ${
-                activeTab === 'subtitleStudio' 
-                  ? 'bg-white text-blue-600 shadow-md' 
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <Video className="w-4 h-4 md:w-5 md:h-5 flex-shrink-0" />
-              {t('app.subtitleStudio')}
-            </button>
           </div>
 
           {/* Mobile Navigation - Stacks vertically */}
@@ -475,17 +393,6 @@ export default function App() {
             >
               <Mic className="w-4 h-4 sm:w-4 sm:h-4 flex-shrink-0" />
               <span className="truncate text-xs sm:text-sm">{t('app.transcriber')}</span>
-            </button>
-            <button 
-              onClick={() => setActiveTab('subtitleStudio')}
-              className={`flex-1 h-11 sm:h-12 px-2 sm:px-3 rounded-lg text-xs sm:text-sm font-semibold transition-all active:scale-95 flex items-center justify-center gap-2 touch-manipulation ${
-                activeTab === 'subtitleStudio' 
-                  ? 'bg-blue-600 text-white shadow-md' 
-                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-              }`}
-            >
-              <Video className="w-4 h-4 sm:w-4 sm:h-4 flex-shrink-0" />
-              <span className="truncate text-xs sm:text-sm">{t('app.subtitleStudio')}</span>
             </button>
           </div>
         </div>
@@ -654,19 +561,7 @@ export default function App() {
                       <button onClick={() => setVideo(null)} className="text-xs uppercase font-bold tracking-widest text-slate-500 hover:text-red-600 transition-all flex-shrink-0 h-11 px-3 flex items-center justify-center hover:bg-red-50 rounded-lg active:scale-95 touch-manipulation">{t('compressor.clear')}</button>
                     </div>
                     <div className="relative aspect-video rounded-lg sm:rounded-xl md:rounded-2xl bg-slate-900 overflow-hidden">
-                      <video 
-                        src={URL.createObjectURL(video)} 
-                        className="w-full h-full object-contain" 
-                        controls 
-                        onLoadedMetadata={(e) => {
-                          const v = e.currentTarget;
-                          setVideoMetadata({
-                            duration: v.duration,
-                            width: v.videoWidth,
-                            height: v.videoHeight
-                          });
-                        }}
-                      />
+                      <video src={URL.createObjectURL(video)} className="w-full h-full object-contain" controls />
                       {status === 'compressing' && (
                         <div className="absolute inset-0 bg-slate-900/90 flex flex-col items-center justify-center p-6 sm:p-8 md:p-10">
                           <div className="w-full max-w-xs">
@@ -731,90 +626,19 @@ export default function App() {
                     </button>
                   </div>
 
-                  {video && status === 'idle' && (
-                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-6 p-4 sm:p-5 md:p-6 bg-slate-50 rounded-xl border border-slate-200 shadow-inner">
-                      <div className="flex items-center gap-2 mb-4">
-                        <Video className="w-4 h-4 text-blue-600" />
-                        <h3 className="text-xs font-bold uppercase tracking-[0.2em] text-slate-600">{t('compressor.preview_title')}</h3>
-                      </div>
-                      
-                      <div className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">{t('compressor.source_size')}</p>
-                            <p className="text-sm font-bold text-slate-700">{formatSize(video.size)}</p>
-                          </div>
-                          <div>
-                            <p className="text-[10px] uppercase tracking-widest text-slate-500 mb-1">{t('compressor.est_output_size')}</p>
-                            <p className="text-sm font-bold text-blue-600">~{estimatedSize ? formatSize(estimatedSize) : '...'}</p>
-                          </div>
-                        </div>
-
-                        {estimatedSize && (
-                          <div className="space-y-2">
-                            <div className="flex justify-between text-[10px] uppercase tracking-widest font-bold">
-                              <span className="text-slate-500">{t('compressor.est_reduction')}</span>
-                              <span className="text-green-600">{Math.round(((video.size - estimatedSize) / video.size) * 100)}%</span>
-                            </div>
-                            <div className="h-2 bg-slate-200 rounded-full overflow-hidden flex">
-                              <div 
-                                className="h-full bg-blue-600 transition-all duration-500" 
-                                style={{ width: `${(estimatedSize / video.size) * 100}%` }} 
-                              />
-                              <div 
-                                className="h-full bg-green-500/30 transition-all duration-500" 
-                                style={{ width: `${((video.size - estimatedSize) / video.size) * 100}%` }} 
-                              />
-                            </div>
-                            <div className="flex justify-between text-[10px] text-slate-400 font-mono">
-                              <span>{t('compressor.est_output_size')}</span>
-                              <span>{t('compressor.est_savings')}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="pt-3 border-t border-slate-200">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[10px] uppercase tracking-widest text-slate-500">{t('compressor.expected_quality')}</span>
-                            <span className="text-xs font-bold text-slate-700">{qualityLabel}</span>
-                          </div>
-                          <p className="text-[10px] text-slate-500 italic">{presetGuidance}</p>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
-
-                  {video && status === 'completed' && outputUrl && (
+                  {status === 'completed' && outputUrl && (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-6 sm:mt-7 md:mt-8 pt-6 sm:pt-7 md:pt-8 border-t border-slate-200">
-                      <div className="bg-gradient-to-r from-blue-50 to-slate-50 p-3 sm:p-4 md:p-5 rounded-lg sm:rounded-xl md:rounded-2xl space-y-4 mb-4 border border-slate-200">
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-                          <div>
-                            <p className="text-xs text-slate-600 uppercase font-mono tracking-widest">{t('compressor.actual_size')}</p>
-                            <p className="text-sm sm:text-base md:text-lg font-bold text-slate-900">{formatSize(compressedSize!)}</p>
-                          </div>
-                          <div className="text-left sm:text-right">
-                            <p className="text-xs text-slate-600 uppercase font-mono tracking-widest">{t('compressor.savings')}</p>
-                            <p className="text-sm sm:text-base md:text-lg font-bold text-green-600">{Math.round(((video.size - compressedSize!) / video.size) * 100)}%</p>
-                          </div>
+                      <div className="bg-gradient-to-r from-blue-50 to-slate-50 p-3 sm:p-4 md:p-5 rounded-lg sm:rounded-xl md:rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-4 border border-slate-200">
+                        <div>
+                          <p className="text-xs text-slate-600 uppercase font-mono tracking-widest">{t('compressor.shrunk_to')}</p>
+                          <p className="text-sm sm:text-base md:text-lg font-bold text-slate-900">{formatSize(compressedSize!)}</p>
                         </div>
-
-                        {initialEstimate && (
-                          <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
-                            <span className="text-[10px] uppercase tracking-widest text-slate-500">{t('compressor.est_output_size')}</span>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xs font-medium text-slate-600">{formatSize(initialEstimate)}</span>
-                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                Math.abs(compressedSize! - initialEstimate) / initialEstimate < 0.1 
-                                  ? 'bg-green-100 text-green-700' 
-                                  : 'bg-amber-100 text-amber-700'
-                              }`}>
-                                {Math.round((Math.abs(compressedSize! - initialEstimate) / initialEstimate) * 100)}% {t('compressor.difference')}
-                              </span>
-                            </div>
-                          </div>
-                        )}
+                        <div className="text-left sm:text-right">
+                          <p className="text-xs text-slate-600 uppercase font-mono tracking-widest">{t('compressor.savings')}</p>
+                          <p className="text-sm sm:text-base md:text-lg font-bold text-green-600">{Math.round(((video!.size - compressedSize!) / video!.size) * 100)}%</p>
+                        </div>
                       </div>
-                      <a href={outputUrl} download={`shrunken_${video.name}`} className="w-full h-12 sm:h-13 md:h-14 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-bold flex items-center justify-center gap-2 sm:gap-3 hover:from-green-700 hover:to-green-800 transition-all shadow-md active:scale-95 text-sm sm:text-base touch-manipulation">
+                      <a href={outputUrl} download={`shrunken_${video!.name}`} className="w-full h-12 sm:h-13 md:h-14 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg font-bold flex items-center justify-center gap-2 sm:gap-3 hover:from-green-700 hover:to-green-800 transition-all shadow-md active:scale-95 text-sm sm:text-base touch-manipulation">
                         <Download className="w-4 sm:w-5 h-4 sm:h-5" /> {t('compressor.download_mp4')}
                       </a>
                     </motion.div>
@@ -822,7 +646,7 @@ export default function App() {
                 </div>
               </div>
             </motion.div>
-          ) : activeTab === 'transcribe' ? (
+          ) : (
             <motion.div 
               key="transcribe"
               initial={{ opacity: 0, y: 10 }}
@@ -864,13 +688,13 @@ export default function App() {
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             onClick={transcribeAudio}
-                            disabled={isTranscribing}
+                            disabled={transcriptionStatus === 'transcribing'}
                             className="flex-1 h-12 sm:h-13 md:h-14 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 sm:px-8 md:px-12 py-3 sm:py-3.5 md:py-4 rounded-lg font-bold flex items-center justify-center gap-2 sm:gap-3 hover:from-blue-700 hover:to-blue-800 transition-all shadow-md disabled:opacity-50 active:scale-95 text-sm sm:text-base touch-manipulation"
                           >
                             <MessageSquare className="w-4 sm:w-5 md:w-6 h-4 sm:h-5 md:h-6 flex-shrink-0" />
-                            {isTranscribing ? t('transcriber.transcribing') : t('transcriber.transcribe_ai')}
+                            {transcriptionStatus === 'transcribing' ? t('transcriber.transcribing') : t('transcriber.transcribe_ai')}
                           </motion.button>
-                          {isTranscribing && (
+                          {transcriptionStatus === 'transcribing' && (
                             <motion.button 
                               initial={{ opacity: 0, scale: 0.9 }}
                               animate={{ opacity: 1, scale: 1 }}
@@ -957,10 +781,6 @@ export default function App() {
                 </div>
               </div>
             </motion.div>
-          ) : (
-            <motion.div key="subtitleStudio" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
-              <SubtitleStudio />
-            </motion.div>
           )}
         </AnimatePresence>
 
@@ -1022,7 +842,7 @@ export default function App() {
                 <span className="hidden sm:inline text-xs md:text-sm">Direct Media Pipeline</span>
                 <span className="sm:hidden text-xs">Media Pipeline</span>
               </div>
-              {activeTab !== 'compressor' && (
+              {activeTab === 'transcribe' && (
                 <div className="flex items-center gap-2 text-xs md:text-sm font-mono text-green-700 bg-green-50 px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 md:py-3 rounded-lg border border-green-200 h-11 sm:h-12 md:h-13 touch-manipulation">
                   <span className="w-2 h-2 bg-green-600 rounded-full animate-pulse flex-shrink-0"></span>
                   <span className="text-xs md:text-sm">AI Active</span>
@@ -1032,11 +852,7 @@ export default function App() {
 
             {/* Engine Info */}
             <div className="text-xs md:text-sm font-mono text-slate-500 text-center sm:text-left">
-              {activeTab === 'compressor'
-                ? 'FFMPEG.WASM ENGINE • LOCAL NODE'
-                : activeTab === 'transcribe'
-                ? 'GOOGLE GEMINI 2.0 FLASH • CLOUD NODE'
-                : 'GOOGLE GEMINI 3.5 FLASH • CLOUD NODE'}
+              {activeTab === 'compressor' ? 'FFMPEG.WASM ENGINE • LOCAL NODE' : 'GOOGLE GEMINI 2.0 FLASH • CLOUD NODE'}
             </div>
 
             {/* Developer Credit - Always visible */}

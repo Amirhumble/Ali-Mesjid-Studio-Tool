@@ -23,4 +23,8 @@
     "allowImportingTsExtensions": true,
     "noEmit": true
   }
+  ,
+  "exclude": [
+    "src/App.old.tsx"
+  ]
 }
