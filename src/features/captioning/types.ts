@@ -13,6 +13,7 @@ export interface CaptionStyle {
   fontFamily: string;
   color: string;
   bgColor: string;
+  bgType: "none" | "solid";
   bgOpacity: number;
   shadowColor: string;
   shadowBlur: number;
@@ -28,6 +29,7 @@ export interface CaptionStyle {
   align: "left" | "center" | "right";
   padding: number;
   borderRadius: number;
+  maxWidth: number; // 0-100 percentage of canvas width
 }
 
 export interface SampleVideo {

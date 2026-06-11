@@ -46,6 +46,7 @@ export default function SubtitleStudio() {
     fontFamily: '"Inter", sans-serif',
     color: "#FFFFFF",
     bgColor: "#000000",
+    bgType: "solid",
     bgOpacity: 0.6,
     shadowColor: "#000000",
     shadowBlur: 4,
@@ -61,6 +62,7 @@ export default function SubtitleStudio() {
     align: "center",
     padding: 12,
     borderRadius: 10,
+    maxWidth: 90,
   });
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationStep, setGenerationStep] = useState<string>("");

@@ -1,5 +1,6 @@
 import { CaptionStyle, CaptionDisplayMode } from "../types";
-import { Sparkles, Sliders, Palette, LayoutGrid, Type, Square, MoveHorizontal, MoveVertical, Layers, MousePointer2 } from "lucide-react";
+import { Sparkles, Sliders, Palette, LayoutGrid, Type, Square, MoveHorizontal, MoveVertical, Layers, MousePointer2, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
+import ColorSelector from "./ColorSelector";
 
 interface StylePanelProps {
   style: CaptionStyle;
@@ -8,21 +9,9 @@ interface StylePanelProps {
   onChangeDisplayMode: (mode: CaptionDisplayMode) => void;
 }
 
-const COLOR_SWATCHES = [
-  { name: "White", value: "#FFFFFF" },
-  { name: "Yellow", value: "#FBBF24" },
-  { name: "Green", value: "#34D399" },
-  { name: "Cyan", value: "#22D3EE" },
-  { name: "Pink", value: "#F472B6" },
-  { name: "Orange", value: "#FB923C" },
-];
-
-const BG_COLOR_SWATCHES = [
-  { name: "Pure Black", value: "#000000" },
-  { name: "Dark Slate", value: "#1E293B" },
-  { name: "Navy", value: "#1E3A8A" },
-  { name: "Deep Forest", value: "#064E3B" },
-  { name: "Crimson", value: "#7F1D1D" },
+const COLOR_PRESETS = [
+  "#FFFFFF", "#FBBF24", "#34D399", "#22D3EE", "#F472B6", "#FB923C",
+  "#000000", "#1E293B", "#1E3A8A", "#064E3B", "#7F1D1D", "#4C1D95"
 ];
 
 const FONT_FAMILIES = [
@@ -51,6 +40,7 @@ export default function StylePanel({
           fontSize: 38,
           color: "#FBBF24",
           bgColor: "#000000",
+          bgType: "solid",
           bgOpacity: 0.9,
           fontWeight: "900",
           strokeWidth: 6,
@@ -62,6 +52,7 @@ export default function StylePanel({
           align: "center",
           borderRadius: 4,
           padding: 8,
+          maxWidth: 80,
         });
         break;
       case "netflix":
@@ -70,6 +61,7 @@ export default function StylePanel({
           fontSize: 26,
           color: "#FFFFFF",
           bgColor: "#000000",
+          bgType: "solid",
           bgOpacity: 0.6,
           fontWeight: "normal",
           strokeWidth: 2,
@@ -81,6 +73,7 @@ export default function StylePanel({
           align: "center",
           borderRadius: 0,
           padding: 10,
+          maxWidth: 90,
         });
         break;
       case "minimal-clean":
@@ -89,6 +82,7 @@ export default function StylePanel({
           fontSize: 30,
           color: "#FFFFFF",
           bgColor: "#000000",
+          bgType: "none",
           bgOpacity: 0.0,
           fontWeight: "bold",
           strokeWidth: 4,
@@ -99,6 +93,7 @@ export default function StylePanel({
           horizontalOffset: 0,
           align: "center",
           padding: 0,
+          maxWidth: 95,
         });
         break;
       case "elegant-gold":
@@ -107,6 +102,7 @@ export default function StylePanel({
           fontSize: 32,
           color: "#FEF08A",
           bgColor: "#1C1917",
+          bgType: "solid",
           bgOpacity: 0.8,
           fontWeight: "semibold",
           strokeWidth: 0,
@@ -116,6 +112,7 @@ export default function StylePanel({
           align: "center",
           borderRadius: 20,
           padding: 15,
+          maxWidth: 85,
         });
         break;
       default:
@@ -196,6 +193,38 @@ export default function StylePanel({
             />
           </div>
 
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                <span>Line Height</span>
+                <span>{style.lineHeight}x</span>
+              </div>
+              <input
+                type="range"
+                min="0.8"
+                max="2.5"
+                step="0.1"
+                value={style.lineHeight}
+                onChange={(e) => updateStyle("lineHeight", parseFloat(e.target.value))}
+                className="w-full accent-blue-600 h-1 bg-slate-200 rounded-full appearance-none"
+              />
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                <span>Letter Spacing</span>
+                <span>{style.letterSpacing}px</span>
+              </div>
+              <input
+                type="range"
+                min="-5"
+                max="20"
+                value={style.letterSpacing}
+                onChange={(e) => updateStyle("letterSpacing", parseInt(e.target.value))}
+                className="w-full accent-blue-600 h-1 bg-slate-200 rounded-full appearance-none"
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Alignment & Weight</label>
             <div className="flex gap-2">
@@ -204,9 +233,9 @@ export default function StylePanel({
                   <button
                     key={a}
                     onClick={() => updateStyle("align", a)}
-                    className={`py-1 text-[10px] font-bold rounded-lg transition-all ${style.align === a ? "bg-blue-600 text-white shadow-md" : "text-slate-400 hover:bg-slate-50"}`}
+                    className={`py-1.5 flex items-center justify-center rounded-lg transition-all ${style.align === a ? "bg-blue-600 text-white shadow-md" : "text-slate-400 hover:bg-slate-50"}`}
                   >
-                    {a[0].toUpperCase()}
+                    {a === "left" ? <AlignLeft className="w-3 h-3" /> : a === "center" ? <AlignCenter className="w-3 h-3" /> : <AlignRight className="w-3 h-3" />}
                   </button>
                 ))}
               </div>
@@ -225,11 +254,11 @@ export default function StylePanel({
           </div>
         </div>
 
-        {/* Positioning */}
+        {/* Layout & Positioning */}
         <div className="space-y-4 p-4 bg-blue-50/50 rounded-2xl border border-blue-100">
           <label className="text-xs font-bold text-blue-800 flex items-center gap-2">
             <MousePointer2 className="w-3.5 h-3.5" />
-            Precise Positioning
+            Layout & Offsets
           </label>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -261,74 +290,105 @@ export default function StylePanel({
               />
             </div>
           </div>
+          <div className="space-y-2">
+            <div className="flex justify-between text-[10px] font-bold text-blue-700">
+              <span className="flex items-center gap-1"><Square className="w-3 h-3" /> Maximum Width</span>
+              <span>{style.maxWidth}%</span>
+            </div>
+            <input
+              type="range"
+              min="20"
+              max="100"
+              value={style.maxWidth}
+              onChange={(e) => updateStyle("maxWidth", parseInt(e.target.value))}
+              className="w-full accent-blue-600 h-1 bg-blue-200 rounded-full cursor-pointer appearance-none"
+            />
+          </div>
         </div>
 
-        {/* Colors & Background */}
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                <Palette className="w-3 h-3" /> Text Color
-              </label>
-              <div className="flex gap-1.5 flex-wrap">
-                {COLOR_SWATCHES.map((s) => (
-                  <button
-                    key={s.value}
-                    onClick={() => updateStyle("color", s.value)}
-                    className={`w-5 h-5 rounded-full border-2 transition-transform active:scale-90 ${style.color === s.value ? "border-blue-600 scale-125 shadow-sm" : "border-transparent"}`}
-                    style={{ backgroundColor: s.value }}
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-                <Palette className="w-3 h-3" /> Backdrop
-              </label>
-              <div className="flex gap-1.5 flex-wrap">
-                {BG_COLOR_SWATCHES.map((s) => (
-                  <button
-                    key={s.value}
-                    onClick={() => updateStyle("bgColor", s.value)}
-                    className={`w-5 h-5 rounded-full border-2 transition-transform active:scale-90 ${style.bgColor === s.value ? "border-blue-600 scale-125 shadow-sm" : "border-transparent"}`}
-                    style={{ backgroundColor: s.value }}
-                  />
-                ))}
-              </div>
+        {/* Text Color */}
+        <ColorSelector
+          label="Text Color"
+          color={style.color}
+          onChange={(c) => updateStyle("color", c)}
+          presets={COLOR_PRESETS}
+        />
+
+        {/* Background Styling */}
+        <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+              <Palette className="w-3 h-3" /> Background Box
+            </label>
+            <div className="flex bg-white rounded-lg p-1 border border-slate-200">
+              {(["none", "solid"] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => updateStyle("bgType", t)}
+                  className={`px-3 py-1 text-[9px] font-bold rounded-md transition-all uppercase ${style.bgType === t ? "bg-slate-900 text-white shadow-sm" : "text-slate-400 hover:text-slate-600"}`}
+                >
+                  {t}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <div className="flex justify-between text-[10px] font-bold text-slate-500">
-                <span>Opacity</span>
-                <span>{Math.round(style.bgOpacity * 100)}%</span>
-              </div>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.05"
-                value={style.bgOpacity}
-                onChange={(e) => updateStyle("bgOpacity", parseFloat(e.target.value))}
-                className="w-full accent-slate-600 h-1 bg-slate-200 rounded-full appearance-none"
+          {style.bgType === "solid" && (
+            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+              <ColorSelector
+                label="Box Color"
+                color={style.bgColor}
+                onChange={(c) => updateStyle("bgColor", c)}
+                presets={COLOR_PRESETS}
               />
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between text-[10px] font-bold text-slate-500">
-                <span>Corner Radius</span>
-                <span>{style.borderRadius}px</span>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                    <span>Opacity</span>
+                    <span>{Math.round(style.bgOpacity * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.05"
+                    value={style.bgOpacity}
+                    onChange={(e) => updateStyle("bgOpacity", parseFloat(e.target.value))}
+                    className="w-full accent-slate-600 h-1 bg-slate-200 rounded-full appearance-none"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                    <span>Padding</span>
+                    <span>{style.padding}px</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="60"
+                    value={style.padding}
+                    onChange={(e) => updateStyle("padding", parseInt(e.target.value))}
+                    className="w-full accent-slate-600 h-1 bg-slate-200 rounded-full appearance-none"
+                  />
+                </div>
               </div>
-              <input
-                type="range"
-                min="0"
-                max="40"
-                value={style.borderRadius}
-                onChange={(e) => updateStyle("borderRadius", parseInt(e.target.value))}
-                className="w-full accent-slate-600 h-1 bg-slate-200 rounded-full appearance-none"
-              />
+              <div className="space-y-2">
+                <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                  <span>Corner Radius</span>
+                  <span>{style.borderRadius}px</span>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="40"
+                  value={style.borderRadius}
+                  onChange={(e) => updateStyle("borderRadius", parseInt(e.target.value))}
+                  className="w-full accent-slate-600 h-1 bg-slate-200 rounded-full appearance-none"
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* Effects */}

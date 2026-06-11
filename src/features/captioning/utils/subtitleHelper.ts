@@ -65,24 +65,34 @@ export function wrapCanvasText(
   text: string,
   maxWidth: number
 ): string[] {
-  const words = text.split(" ");
+  // Respect manual line breaks first
+  const manualLines = text.split("\n");
   const lines: string[] = [];
-  let currentLine = "";
 
-  for (let i = 0; i < words.length; i++) {
-    const word = words[i];
-    const testLine = currentLine ? `${currentLine} ${word}` : word;
-    const metrics = ctx.measureText(testLine);
-
-    if (metrics.width > maxWidth && i > 0) {
-      lines.push(currentLine);
-      currentLine = word;
-    } else {
-      currentLine = testLine;
+  for (const manualLine of manualLines) {
+    if (manualLine.trim() === "") {
+      lines.push("");
+      continue;
     }
-  }
-  if (currentLine) {
-    lines.push(currentLine);
+
+    const words = manualLine.split(" ");
+    let currentLine = "";
+
+    for (let i = 0; i < words.length; i++) {
+      const word = words[i];
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const metrics = ctx.measureText(testLine);
+
+      if (metrics.width > maxWidth && i > 0) {
+        lines.push(currentLine);
+        currentLine = word;
+      } else {
+        currentLine = testLine;
+      }
+    }
+    if (currentLine) {
+      lines.push(currentLine);
+    }
   }
   return lines;
 }
@@ -107,7 +117,7 @@ export function drawCanvasSubtitle(
   ctx.textAlign = style.align;
   ctx.textBaseline = "middle";
 
-  const paddingMultiplier = 0.9;
+  const paddingMultiplier = style.maxWidth !== undefined ? (style.maxWidth / 100) : 0.9;
   const maxTextWidth = canvasWidth * paddingMultiplier;
 
   if (mode === "original" || mode === "dual") {
@@ -137,7 +147,7 @@ export function drawCanvasSubtitle(
   const verticalBoxPadding = style.padding !== undefined ? style.padding : finalFontSize * 0.3;
   const horizontalBoxPadding = style.padding !== undefined ? style.padding * 1.5 : finalFontSize * 0.6;
 
-  if (style.bgOpacity > 0) {
+  if (style.bgType === "solid" && style.bgOpacity > 0) {
     ctx.save();
     ctx.globalAlpha = style.bgOpacity;
     ctx.fillStyle = style.bgColor;
