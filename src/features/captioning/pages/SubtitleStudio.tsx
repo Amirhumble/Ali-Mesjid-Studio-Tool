@@ -10,6 +10,7 @@ import {
 } from "../utils/subtitleHelper";
 import CaptionEditor from "../components/CaptionEditor";
 import StylePanel from "../components/StylePanel";
+import { fetchFile } from "@ffmpeg/util";
 import {
   Upload,
   Sparkles,
@@ -28,7 +29,13 @@ import {
   Volume2,
 } from "lucide-react";
 
-export default function SubtitleStudio() {
+type ExportQuality = "original" | "high" | "balanced" | "small";
+
+interface SubtitleStudioProps {
+  ffmpeg?: any;
+}
+
+export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
   const [selectedVideo, setSelectedVideo] = useState(SAMPLE_VIDEOS[0]);
   const [videoSrc, setVideoSrc] = useState(SAMPLE_VIDEOS[0].url);
   const [isDemo, setIsDemo] = useState(true);
@@ -73,6 +80,7 @@ export default function SubtitleStudio() {
   const [exportProgress, setExportProgress] = useState(0);
   const [exportError, setExportError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [exportQuality, setExportQuality] = useState<ExportQuality>("original");
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -347,6 +355,11 @@ export default function SubtitleStudio() {
   };
 
   const handleExportHardcodedVideo = async () => {
+    if (!ffmpeg || !ffmpeg.loaded) {
+      setExportError("FFmpeg engine is not yet initialized. Please wait.");
+      return;
+    }
+
     const video = videoRef.current;
     if (!video) {
       setExportError("Unable to locate active video element reference.");
@@ -361,138 +374,117 @@ export default function SubtitleStudio() {
     setIsPlaying(false);
 
     try {
+      const width = video.videoWidth || 1280;
+      const height = video.videoHeight || 720;
+      const fps = 30; // Standard capture FPS
+      const totalFrames = Math.ceil(video.duration * fps);
+
+      // 1. Prepare Export UI
       const exportCanvas = document.createElement("canvas");
-      exportCanvas.width = video.videoWidth || 1280;
-      exportCanvas.height = video.videoHeight || 720;
-      exportCanvas.style.display = "none";
-      document.body.appendChild(exportCanvas);
+      exportCanvas.width = width;
+      exportCanvas.height = height;
+      const exportCtx = exportCanvas.getContext("2d", { alpha: false, desynchronized: true });
+      if (!exportCtx) throw new Error("Could not initialize 2D context.");
 
-      const exportCtx = exportCanvas.getContext("2d");
-      if (!exportCtx) {
-        throw new Error("Could not construct 2D offscreen rendering canvas context.");
-      }
-
-      const stream = exportCanvas.captureStream(30);
+      // 2. Load Source Video into FFmpeg
+      const sourceFilename = "source_video.mp4";
+      const audioFilename = "source_audio.aac";
       
-      // Attempt to capture audio from the video element
-      let combinedStream = stream;
-      try {
-        const videoElement = videoRef.current;
-        if (videoElement) {
-          // @ts-ignore - captureStream is not always in types
-          const videoStream = videoElement.captureStream ? videoElement.captureStream() : 
-                               // @ts-ignore
-                               videoElement.mozCaptureStream ? videoElement.mozCaptureStream() : null;
-          
-          if (videoStream && videoStream.getAudioTracks().length > 0) {
-            const audioTrack = videoStream.getAudioTracks()[0];
-            combinedStream = new MediaStream([stream.getVideoTracks()[0], audioTrack]);
-          }
-        }
-      } catch (err) {
-        console.warn("Failed to capture audio stream from video element:", err);
+      let videoBlob: Blob;
+      if (videoFile) {
+        videoBlob = videoFile;
+      } else {
+        const response = await fetch(videoSrc);
+        videoBlob = await response.blob();
       }
-
-      let opt = { 
-        mimeType: "video/webm;codecs=vp9,opus",
-        videoBitsPerSecond: 12000000, // 12 Mbps for high quality
-        audioBitsPerSecond: 128000
-      };
       
-      if (!MediaRecorder.isTypeSupported(opt.mimeType)) {
-        opt = { ...opt, mimeType: "video/webm;codecs=vp8,opus" };
-      }
-      if (!MediaRecorder.isTypeSupported(opt.mimeType)) {
-        opt = { ...opt, mimeType: "video/webm" };
-      }
+      await ffmpeg.writeFile(sourceFilename, await fetchFile(videoBlob));
+      
+      // Extract Audio for final muxing
+      await ffmpeg.exec(["-i", sourceFilename, "-vn", "-acodec", "copy", audioFilename]);
 
-      const recorder = new MediaRecorder(combinedStream, opt);
-      const recordedChunks: Blob[] = [];
-
-      recorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          recordedChunks.push(event.data);
-        }
-      };
-
-      const origVolume = video.volume;
-      const origMuted = video.muted;
-      const origCurrentTime = video.currentTime;
-
-      video.muted = false;
-      video.volume = 0.15;
-      video.currentTime = 0;
-
-      const recordingPromise = new Promise<Blob>((resolve, reject) => {
-        recorder.onstop = () => {
-          const finishedBlob = new Blob(recordedChunks, { type: "video/webm" });
-          resolve(finishedBlob);
-        };
-        recorder.onerror = (e) => reject(e);
+      // 3. Frame-by-Frame Rendering Loop
+      const renderVideo = document.createElement("video");
+      renderVideo.src = videoSrc;
+      renderVideo.crossOrigin = "anonymous";
+      renderVideo.muted = true;
+      await new Promise((resolve) => {
+        renderVideo.onloadedmetadata = resolve;
       });
 
-      recorder.start();
+      for (let i = 0; i < totalFrames; i++) {
+        const timestamp = i / fps;
+        renderVideo.currentTime = timestamp;
+        
+        await new Promise((resolve) => {
+          renderVideo.onseeked = resolve;
+        });
 
-      const infoInterval = setInterval(() => {
-        if (video.currentTime && video.duration) {
-          const ratio = (video.currentTime / video.duration) * 100;
-          setExportProgress(Math.min(99, Math.round(ratio)));
+        // Draw video frame
+        exportCtx.drawImage(renderVideo, 0, 0, width, height);
+        
+        // Draw captions
+        const activeCap = captions.find((c) => timestamp >= c.start && timestamp <= c.end);
+        if (activeCap) {
+          drawCanvasSubtitle(exportCtx, activeCap, width, height, displayMode, captionStyle);
         }
-      }, 250);
 
-      video.play();
+        // Save frame to FFmpeg
+        const frameData = exportCanvas.toDataURL("image/jpeg", 0.95);
+        const frameBlob = await (await fetch(frameData)).blob();
+        const frameFilename = `frame_${String(i).padStart(6, "0")}.jpg`;
+        await ffmpeg.writeFile(frameFilename, await fetchFile(frameBlob));
 
-      await new Promise<void>((resolve, reject) => {
-        const onTimeUpdate = () => {
-          exportCtx.drawImage(video, 0, 0, exportCanvas.width, exportCanvas.height);
-          const currentTimestamp = video.currentTime;
-          const activeCap = captions.find((c) => currentTimestamp >= c.start && currentTimestamp <= c.end);
-          if (activeCap) {
-            drawCanvasSubtitle(exportCtx, activeCap, exportCanvas.width, exportCanvas.height, displayMode, captionStyle);
-          }
-        };
+        setExportProgress(Math.round((i / totalFrames) * 90)); // Save last 10% for final muxing
+      }
 
-        const onEnded = () => {
-          video.removeEventListener("timeupdate", onTimeUpdate);
-          video.removeEventListener("ended", onEnded);
-          video.removeEventListener("error", onError);
-          resolve();
-        };
+      // 4. Mux Frames and Audio
+      const outputFilename = `subtitled_video_${Date.now()}.mp4`;
+      
+      // Quality settings based on profile
+      const crfMap = { original: "18", high: "23", balanced: "28", small: "32" };
+      const presetMap = { original: "slow", high: "medium", balanced: "fast", small: "veryfast" };
+      
+      const crf = crfMap[exportQuality];
+      const preset = presetMap[exportQuality];
 
-        const onError = (e: any) => {
-          video.removeEventListener("timeupdate", onTimeUpdate);
-          video.removeEventListener("ended", onEnded);
-          video.removeEventListener("error", onError);
-          reject(new Error("Video playback error during export step."));
-        };
+      await ffmpeg.exec([
+        "-framerate", fps.toString(),
+        "-i", "frame_%06d.jpg",
+        "-i", audioFilename,
+        "-c:v", "libx264",
+        "-crf", crf,
+        "-preset", preset,
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac",
+        "-shortest",
+        outputFilename
+      ]);
 
-        video.addEventListener("timeupdate", onTimeUpdate);
-        video.addEventListener("ended", onEnded);
-        video.addEventListener("error", onError);
-      });
-
-      recorder.stop();
-      clearInterval(infoInterval);
-
-      const outputVideoBlob = await recordingPromise;
       setExportProgress(100);
 
-      const downloadUrl = URL.createObjectURL(outputVideoBlob);
+      // 5. Download Result
+      const data = await ffmpeg.readFile(outputFilename);
+      const outputBlob = new Blob([new Uint8Array(data as ArrayBuffer)], { type: "video/mp4" });
+      const downloadUrl = URL.createObjectURL(outputBlob);
       const downloadLink = document.createElement("a");
       downloadLink.href = downloadUrl;
-      downloadLink.download = `subtitled-amharic-video.webm`;
+      downloadLink.download = `amharic-subtitled-video.mp4`;
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
 
-      video.muted = origMuted;
-      video.volume = origVolume;
-      video.currentTime = origCurrentTime;
+      // Cleanup
+      await ffmpeg.deleteFile(sourceFilename);
+      await ffmpeg.deleteFile(audioFilename);
+      await ffmpeg.deleteFile(outputFilename);
+      for (let i = 0; i < totalFrames; i++) {
+        await ffmpeg.deleteFile(`frame_${String(i).padStart(6, "0")}.jpg`);
+      }
 
-      document.body.removeChild(exportCanvas);
     } catch (err: any) {
       console.error(err);
-      setExportError(err.message || "Failed to render video with hardcoded subtitles.");
+      setExportError(err.message || "Failed to render high-quality video.");
     } finally {
       setIsExportingVideo(false);
     }
@@ -841,6 +833,22 @@ export default function SubtitleStudio() {
                 <span className="text-xs font-bold text-slate-700 uppercase tracking-widest">Hardcoded Video Export</span>
                 <span className="text-[9px] font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full uppercase">High Quality</span>
               </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                {(["original", "high", "balanced", "small"] as ExportQuality[]).map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => setExportQuality(q)}
+                    className={`py-2 px-3 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                      exportQuality === q
+                        ? "bg-blue-600 text-white border-blue-600 shadow-sm"
+                        : "bg-white text-slate-500 border-slate-200 hover:border-blue-300"
+                    }`}
+                  >
+                    {q} Quality
+                  </button>
+                ))}
+              </div>
               
               {exportError && (
                 <div className="p-4 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 text-xs font-medium flex gap-2 animate-in fade-in slide-in-from-top-1">
@@ -853,7 +861,7 @@ export default function SubtitleStudio() {
                 <div className="space-y-3 p-5 bg-blue-50 rounded-2xl border border-blue-100 animate-in fade-in zoom-in-95">
                   <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
                     <span className="text-blue-700 flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" /> Rendering Frames
+                      <Loader2 className="w-4 h-4 animate-spin" /> {exportProgress < 90 ? "Capturing Frames" : "Encoding Video"}
                     </span>
                     <span className="text-blue-800">{exportProgress}%</span>
                   </div>
@@ -864,7 +872,7 @@ export default function SubtitleStudio() {
                     />
                   </div>
                   <p className="text-[10px] text-blue-600 font-medium text-center leading-relaxed">
-                    Preserving original audio & burning styles... Keep tab active for best performance.
+                    {exportProgress < 90 ? "Performing frame-accurate capture..." : "Finalizing high-quality MP4 container..."}
                   </p>
                 </div>
               )}
