@@ -1034,9 +1034,7 @@ export default function App() {
             <div className="text-xs md:text-sm font-mono text-slate-500 text-center sm:text-left">
               {activeTab === 'compressor'
                 ? 'FFMPEG.WASM ENGINE • LOCAL NODE'
-                : activeTab === 'transcribe'
-                ? 'GOOGLE GEMINI 2.0 FLASH • CLOUD NODE'
-                : 'GOOGLE GEMINI 3.5 FLASH • CLOUD NODE'}
+                : 'GOOGLE GEMINI 2.0 FLASH • CLOUD NODE'}
             </div>
 
             {/* Developer Credit - Always visible */}

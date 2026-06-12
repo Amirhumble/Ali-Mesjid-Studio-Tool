@@ -30,6 +30,63 @@ const upload = multer({
   }
 });
 
+// Helper for robust AI calls with retry and model fallback
+async function callGeminiWithRetry(options: {
+  mimeType: string,
+  data: string,
+  prompt: string,
+  schema?: any,
+  isJson?: boolean
+}) {
+  const models = ["gemini-3.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+  const maxRetriesPerModel = 2;
+  let lastError: any = null;
+
+  for (const modelName of models) {
+    let attempt = 0;
+    while (attempt < maxRetriesPerModel) {
+      try {
+        console.log(`Requesting ${modelName} (Attempt ${attempt + 1}/${maxRetriesPerModel})...`);
+        const response = await ai.models.generateContent({
+          model: modelName,
+          contents: [
+            {
+              inlineData: {
+                mimeType: options.mimeType,
+                data: options.data,
+              },
+            },
+            options.prompt,
+          ],
+          config: options.isJson ? {
+            responseMimeType: "application/json",
+            responseSchema: options.schema,
+          } : undefined,
+        });
+
+        return response.text;
+      } catch (error: any) {
+        lastError = error;
+        const status = error.status || (error.message?.includes("503") ? 503 : (error.message?.includes("429") ? 429 : 500));
+        const isRetryable = status === 503 || status === 429 || error.message?.includes("high demand") || error.message?.includes("UNAVAILABLE");
+        
+        if (isRetryable && attempt < maxRetriesPerModel - 1) {
+          attempt++;
+          const delay = Math.pow(2, attempt) * 1500;
+          console.warn(`${modelName} busy (${status}). Retrying in ${delay}ms...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        
+        console.warn(`${modelName} failed with status ${status}. ${models.indexOf(modelName) < models.length - 1 ? "Trying fallback model..." : "No more fallbacks."}`);
+        break; // Move to next model
+      }
+    }
+  }
+
+  throw lastError;
+}
+
 // API Routes
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
@@ -46,29 +103,15 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
     }
 
     const { buffer, mimetype } = req.file;
-    
-    // Gemini supports common audio formats like audio/wav, audio/mp3, audio/ogg, audio/flac
-    // If the browser sends something else, we might need to check, but most audio inputs work.
     const base64Data = buffer.toString('base64');
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: {
-        parts: [
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: mimetype,
-            },
-          },
-          {
-            text: "Please transcribe this audio file accurately. Identify speakers if there are multiple. Provide the transcription in a clear format.",
-          },
-        ],
-      }
+    const transcription = await callGeminiWithRetry({
+      data: base64Data,
+      mimeType: mimetype,
+      prompt: "Please transcribe this audio file accurately. Identify speakers if there are multiple. Provide the transcription in a clear format."
     });
 
-    res.json({ transcription: response.text });
+    res.json({ transcription });
   } catch (error: any) {
     console.error("Transcription error:", error);
     res.status(500).json({ error: error.message || "Failed to transcribe audio" });
@@ -88,15 +131,6 @@ app.post("/api/generate-captions", async (req, res) => {
       return res.status(500).json({ error: "Gemini API key not configured. Please set GEMINI_API_KEY environment variable." });
     }
 
-    const ai = new GoogleGenAI({
-      apiKey: process.env.GEMINI_API_KEY,
-      httpOptions: {
-        headers: {
-          "User-Agent": "aistudio-build",
-        },
-      },
-    });
-
     const customHintText = instructionHint ? ` Additional Hint from user: ${instructionHint}` : "";
     const promptText = `Analyze the speech in this audio or video file.
 1. Transcribe the spoken words accurately.
@@ -105,61 +139,31 @@ app.post("/api/generate-captions", async (req, res) => {
 4. Return each object with id, start, end, original, and amharic fields.
 ${customHintText}`;
 
-    // Retry logic for robust AI communication
-    const maxRetries = 3;
-    let attempt = 0;
-    let lastError: any = null;
+    const schema = {
+      type: Type.ARRAY,
+      items: {
+        type: Type.OBJECT,
+        properties: {
+          id: { type: Type.INTEGER },
+          start: { type: Type.NUMBER },
+          end: { type: Type.NUMBER },
+          original: { type: Type.STRING },
+          amharic: { type: Type.STRING },
+        },
+        required: ["id", "start", "end", "original", "amharic"],
+      },
+    };
 
-    while (attempt < maxRetries) {
-      try {
-        const response = await ai.models.generateContent({
-          model: "gemini-1.5-flash",
-          contents: [
-            {
-              inlineData: {
-                mimeType,
-                data: fileData,
-              },
-            },
-            promptText,
-          ],
-          config: {
-            responseMimeType: "application/json",
-            responseSchema: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  id: { type: Type.INTEGER },
-                  start: { type: Type.NUMBER },
-                  end: { type: Type.NUMBER },
-                  original: { type: Type.STRING },
-                  amharic: { type: Type.STRING },
-                },
-                required: ["id", "start", "end", "original", "amharic"],
-              },
-            },
-          },
-        });
+    const resultText = await callGeminiWithRetry({
+      data: fileData,
+      mimeType,
+      prompt: promptText,
+      schema,
+      isJson: true
+    });
 
-        const captions = JSON.parse(response.text.trim());
-        return res.json({ captions });
-      } catch (error: any) {
-        lastError = error;
-        const isRetryable = error.status === 503 || error.status === 429 || error.message?.includes("high demand") || error.message?.includes("429");
-        
-        if (isRetryable && attempt < maxRetries - 1) {
-          attempt++;
-          const delay = Math.pow(2, attempt) * 1000;
-          console.warn(`Gemini API busy (Attempt ${attempt}/${maxRetries}). Retrying in ${delay}ms...`);
-          await new Promise(r => setTimeout(r, delay));
-          continue;
-        }
-        break;
-      }
-    }
-
-    throw lastError;
+    const captions = JSON.parse(resultText.trim());
+    return res.json({ captions });
   } catch (error: any) {
     console.error("Generate captions error:", error);
     return res.status(500).json({ error: error.message || "Failed to generate captions." });
