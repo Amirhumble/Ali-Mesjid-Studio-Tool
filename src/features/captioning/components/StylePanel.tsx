@@ -139,7 +139,7 @@ export default function StylePanel({
                   : "text-slate-400 hover:text-slate-600"
               }`}
             >
-              {mode}
+              {mode === "amharic" ? "Amharic Only" : mode === "original" ? "Original Spoken" : "Dual Language"}
             </button>
           ))}
         </div>

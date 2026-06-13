@@ -27,6 +27,7 @@ import {
   AlertCircle,
   Loader2,
   Volume2,
+  Maximize,
 } from "lucide-react";
 
 type ExportQuality = "original" | "high" | "balanced" | "small";
@@ -77,6 +78,8 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
   const [aiError, setAiError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isExportingVideo, setIsExportingVideo] = useState(false);
+  const [isBuffering, setIsBuffering] = useState(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [exportProgress, setExportProgress] = useState(0);
   const [exportError, setExportError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -182,14 +185,34 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
 
   const togglePlay = () => {
     if (videoRef.current) {
-      if (isPlaying) {
-        videoRef.current.pause();
+      if (videoRef.current.paused) {
+        videoRef.current.play().catch((err) => {
+          console.warn("Playback engagement failed:", err);
+          setIsPlaying(false);
+        });
       } else {
-        videoRef.current.play().catch((err) => console.log("Play failed", err));
+        videoRef.current.pause();
       }
-      setIsPlaying(!isPlaying);
     }
   };
+
+  const toggleFullscreen = () => {
+    if (videoRef.current) {
+      if (videoRef.current.requestFullscreen) {
+        videoRef.current.requestFullscreen();
+      } else if ((videoRef.current as any).webkitRequestFullscreen) {
+        (videoRef.current as any).webkitRequestFullscreen();
+      } else if ((videoRef.current as any).msRequestFullscreen) {
+        (videoRef.current as any).msRequestFullscreen();
+      }
+    }
+  };
+
+  const handleVideoPlay = () => setIsPlaying(true);
+  const handleVideoPause = () => setIsPlaying(false);
+  const handleVideoWaiting = () => setIsBuffering(true);
+  const handleVideoPlaying = () => setIsBuffering(false);
+  const handleVideoEnded = () => setIsPlaying(false);
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
@@ -201,6 +224,7 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
   const handleLoadedMetadata = () => {
     if (videoRef.current) {
       setDuration(videoRef.current.duration);
+      setIsLoaded(true);
       const canvas = canvasRef.current;
       if (canvas) {
         canvas.width = videoRef.current.clientWidth;
@@ -257,39 +281,66 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
     });
   };
 
-  const getAudioDataFromVideo = async (videoUrl: string): Promise<{ data: string; mimeType: string }> => {
-    setGenerationStep("Extracting audio band from video stream...");
-    const response = await fetch(videoUrl);
-    const blob = await response.blob();
-    const base64 = await convertToBase64(blob);
-    return {
-      data: base64,
-      mimeType: blob.type || "video/mp4",
-    };
+  const extractAudioFromMedia = async (fileOrUrl: File | string): Promise<{ data: string, mimeType: string }> => {
+    if (!ffmpeg || !ffmpeg.loaded) {
+      throw new Error("FFmpeg engine is not yet initialized. Audio extraction failed.");
+    }
+    
+    const inputName = "input_media";
+    const outputName = "extracted_audio.mp3";
+    
+    setGenerationStep("Reading media stream...");
+    await ffmpeg.writeFile(inputName, await fetchFile(fileOrUrl));
+    
+    setGenerationStep("Extracting audio band from media track...");
+    
+    // -vn: no video
+    // -ac 1: convert to mono
+    // -ar 16000: resample to 16kHz (ideal for speech AI)
+    // -acodec libmp3lame: mp3 encoding
+    // -ab 64k: 64kbps bitrate (plenty for voice, smaller payload)
+    await ffmpeg.exec([
+      "-i", inputName, 
+      "-vn", 
+      "-ac", "1",
+      "-ar", "16000",
+      "-acodec", "libmp3lame", 
+      "-ab", "64k", 
+      outputName
+    ]);
+    
+    const data = await ffmpeg.readFile(outputName);
+    const audioBlob = new Blob([new Uint8Array(data as ArrayBuffer)], { type: "audio/mp3" });
+    const base64 = await convertToBase64(audioBlob);
+    
+    // Cleanup
+    await ffmpeg.deleteFile(inputName);
+    await ffmpeg.deleteFile(outputName);
+    
+    return { data: base64, mimeType: "audio/mp3" };
   };
 
   const handleGenerateAICaptions = async () => {
     setIsGenerating(true);
     setAiError(null);
     setSuccessMessage(null);
-    setGenerationStep("Prepping video pipeline...");
+    setGenerationStep("Prepping AI pipeline...");
 
     try {
-      let payloadMime = "video/mp4";
+      let payloadMime = "audio/mp3";
       let base64Data = "";
 
       if (videoFile) {
-        setGenerationStep("Compressing video track for AI transcribing...");
-        base64Data = await convertToBase64(videoFile);
-        payloadMime = videoFile.type || "video/mp4";
+        const responseData = await extractAudioFromMedia(videoFile);
+        base64Data = responseData.data;
+        payloadMime = responseData.mimeType;
       } else {
-        setGenerationStep("Streaming cloud sample content...");
-        const responseData = await getAudioDataFromVideo(videoSrc);
+        const responseData = await extractAudioFromMedia(videoSrc);
         base64Data = responseData.data;
         payloadMime = responseData.mimeType;
       }
 
-      setGenerationStep("Analyzing audio track and translating to Amharic with Gemini AI...");
+      setGenerationStep("Analyzing audio track and translating with Gemini AI...");
 
       const response = await fetch("/api/generate-captions", {
         method: "POST",
@@ -378,6 +429,7 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
       const height = video.videoHeight || 720;
       const fps = 30; // Standard capture FPS
       const totalFrames = Math.ceil(video.duration * fps);
+      console.log("[Export] Starting video export pipeline...", { width, height, fps, totalFrames });
 
       // 1. Prepare Export UI
       const exportCanvas = document.createElement("canvas");
@@ -394,6 +446,7 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
       if (videoFile) {
         videoBlob = videoFile;
       } else {
+        console.log("[Export] Fetching sample video blob...");
         const response = await fetch(videoSrc);
         videoBlob = await response.blob();
       }
@@ -401,7 +454,13 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
       await ffmpeg.writeFile(sourceFilename, await fetchFile(videoBlob));
       
       // Extract Audio for final muxing
-      await ffmpeg.exec(["-i", sourceFilename, "-vn", "-acodec", "copy", audioFilename]);
+      console.log("[Export] Extracting audio stream...");
+      try {
+        await ffmpeg.exec(["-i", sourceFilename, "-vn", "-acodec", "aac", audioFilename]);
+      } catch (audioErr) {
+        console.warn("[Export] Audio extraction failed or no audio track found. Proceeding without audio.", audioErr);
+        // Create a dummy silent audio or just ignore it
+      }
 
       // 3. Frame-by-Frame Rendering Loop
       const renderVideo = document.createElement("video");
@@ -412,6 +471,7 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
         renderVideo.onloadedmetadata = resolve;
       });
 
+      console.log("[Export] Beginning frame capture loop...");
       for (let i = 0; i < totalFrames; i++) {
         const timestamp = i / fps;
         renderVideo.currentTime = timestamp;
@@ -429,41 +489,61 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
           drawCanvasSubtitle(exportCtx, activeCap, width, height, displayMode, captionStyle);
         }
 
-        // Save frame to FFmpeg
-        const frameData = exportCanvas.toDataURL("image/jpeg", 0.95);
-        const frameBlob = await (await fetch(frameData)).blob();
-        const frameFilename = `frame_${String(i).padStart(6, "0")}.jpg`;
-        await ffmpeg.writeFile(frameFilename, await fetchFile(frameBlob));
+        // Save frame to FFmpeg (Optimized with toBlob)
+        const frameBlob = await new Promise<Blob | null>((resolve) => exportCanvas.toBlob(resolve, "image/jpeg", 0.90));
+        if (frameBlob) {
+          const frameFilename = `frame_${String(i).padStart(6, "0")}.jpg`;
+          await ffmpeg.writeFile(frameFilename, await fetchFile(frameBlob));
+        }
 
-        setExportProgress(Math.round((i / totalFrames) * 90)); // Save last 10% for final muxing
+        if (i % 10 === 0 || i === totalFrames - 1) {
+          setExportProgress(Math.round((i / totalFrames) * 85)); 
+        }
       }
 
       // 4. Mux Frames and Audio
+      console.log("[Export] Finalizing encoding and muxing...");
       const outputFilename = `subtitled_video_${Date.now()}.mp4`;
       
       // Quality settings based on profile
       const crfMap = { original: "18", high: "23", balanced: "28", small: "32" };
-      const presetMap = { original: "slow", high: "medium", balanced: "fast", small: "veryfast" };
+      // Use faster presets for browser safety
+      const presetMap = { original: "medium", high: "fast", balanced: "veryfast", small: "ultrafast" };
       
       const crf = crfMap[exportQuality];
       const preset = presetMap[exportQuality];
 
-      await ffmpeg.exec([
+      const hasAudio = (await ffmpeg.readFile(audioFilename)).length > 0;
+      
+      const muxArgs = [
         "-framerate", fps.toString(),
         "-i", "frame_%06d.jpg",
-        "-i", audioFilename,
+      ];
+
+      if (hasAudio) {
+        muxArgs.push("-i", audioFilename);
+      }
+
+      muxArgs.push(
         "-c:v", "libx264",
         "-crf", crf,
         "-preset", preset,
-        "-pix_fmt", "yuv420p",
-        "-c:a", "aac",
-        "-shortest",
-        outputFilename
-      ]);
+        "-pix_fmt", "yuv420p"
+      );
 
-      setExportProgress(100);
+      if (hasAudio) {
+        muxArgs.push("-c:a", "copy", "-shortest");
+      }
+
+      muxArgs.push(outputFilename);
+
+      console.log("[Export] Executing FFmpeg muxing with args:", muxArgs);
+      await ffmpeg.exec(muxArgs);
+
+      setExportProgress(95);
 
       // 5. Download Result
+      console.log("[Export] Reading final output file...");
       const data = await ffmpeg.readFile(outputFilename);
       const outputBlob = new Blob([new Uint8Array(data as ArrayBuffer)], { type: "video/mp4" });
       const downloadUrl = URL.createObjectURL(outputBlob);
@@ -473,14 +553,22 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
       document.body.appendChild(downloadLink);
       downloadLink.click();
       document.body.removeChild(downloadLink);
+      
+      setExportProgress(100);
+      console.log("[Export] Video export complete and download triggered.");
 
       // Cleanup
-      await ffmpeg.deleteFile(sourceFilename);
-      await ffmpeg.deleteFile(audioFilename);
-      await ffmpeg.deleteFile(outputFilename);
-      for (let i = 0; i < totalFrames; i++) {
-        await ffmpeg.deleteFile(`frame_${String(i).padStart(6, "0")}.jpg`);
+      console.log("[Export] Cleaning up virtual filesystem...");
+      try {
+        await ffmpeg.deleteFile(sourceFilename);
+        await ffmpeg.deleteFile(audioFilename);
+        await ffmpeg.deleteFile(outputFilename);
+        // Batch delete is not supported, but we can try to keep the FS clean
+        // Deleting thousands of frames can be slow, maybe skip or do it asynchronously
+      } catch (cleanupErr) {
+        console.warn("[Export] Cleanup encountered an error (ignorable):", cleanupErr);
       }
+
 
     } catch (err: any) {
       console.error(err);
@@ -554,7 +642,13 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
               <video
                 ref={videoRef}
                 src={videoSrc}
-                onClick={togglePlay}
+                playsInline
+                webkit-playsinline="true"
+                onPlay={handleVideoPlay}
+                onPause={handleVideoPause}
+                onWaiting={handleVideoWaiting}
+                onPlaying={handleVideoPlaying}
+                onEnded={handleVideoEnded}
                 onTimeUpdate={handleTimeUpdate}
                 onLoadedMetadata={handleLoadedMetadata}
                 crossOrigin="anonymous"
@@ -566,15 +660,25 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
                 onMouseLeave={handleMouseUp}
-                className={`absolute top-0 left-0 w-full h-full ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+                className={`absolute top-0 left-0 w-full h-full z-10 ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
               />
-              {!isPlaying && (
+              
+              {isBuffering && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 backdrop-blur-[2px] z-20">
+                  <div className="flex flex-col items-center gap-3">
+                    <Loader2 className="w-10 h-10 text-white animate-spin" />
+                    <span className="text-white text-xs font-bold uppercase tracking-widest animate-pulse">Buffering...</span>
+                  </div>
+                </div>
+              )}
+
+              {!isPlaying && !isBuffering && (
                 <button
                   type="button"
                   onClick={togglePlay}
-                  className="absolute p-5 rounded-full bg-white/90 hover:bg-white text-blue-600 transform hover:scale-110 active:scale-95 transition-all shadow-2xl cursor-pointer border border-blue-100"
+                  className="absolute p-6 rounded-full bg-white/90 hover:bg-white text-blue-600 transform hover:scale-110 active:scale-95 transition-all shadow-2xl cursor-pointer border border-blue-100 z-30 group"
                 >
-                  <Play className="w-8 h-8 fill-current translate-x-0.5" />
+                  <Play className="w-10 h-10 fill-current translate-x-0.5 group-hover:text-blue-700" />
                 </button>
               )}
             </div>
@@ -593,11 +697,11 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
                 <span className="text-xs font-bold text-slate-500 font-mono w-12 text-right">{formatVideoTime(duration)}</span>
               </div>
               <div className="flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-1">
+                <div className="flex items-center gap-1.5">
                   <button
                     type="button"
                     onClick={togglePlay}
-                    className="p-2.5 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-90"
+                    className="p-3 rounded-xl bg-slate-50 text-slate-600 hover:text-blue-600 hover:bg-blue-100 transition-all active:scale-90"
                     title={isPlaying ? "Pause" : "Play"}
                   >
                     {isPlaying ? <Pause className="w-6 h-6" /> : <Play className="w-6 h-6 fill-current" />}
@@ -605,12 +709,21 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
                   <button
                     type="button"
                     onClick={restartVideo}
-                    className="p-2.5 rounded-xl text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-all active:scale-90"
+                    className="p-3 rounded-xl bg-slate-50 text-slate-600 hover:text-blue-600 hover:bg-blue-100 transition-all active:scale-90"
                     title="Restart Video"
                   >
                     <RotateCcw className="w-5 h-5" />
                   </button>
-                  <div className="flex items-center gap-2 ml-4 border-l border-slate-100 pl-4">
+                  <button
+                    type="button"
+                    onClick={toggleFullscreen}
+                    className="p-3 rounded-xl bg-slate-50 text-slate-600 hover:text-blue-600 hover:bg-blue-100 transition-all active:scale-90 hidden sm:flex"
+                    title="Fullscreen"
+                  >
+                    <Maximize className="w-5 h-5" />
+                  </button>
+
+                  <div className="flex items-center gap-2 ml-2 sm:ml-4 border-l border-slate-100 pl-2 sm:pl-4">
                     <button
                       type="button"
                       onClick={toggleMute}
@@ -625,13 +738,13 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
                       step="0.05"
                       value={isMuted ? 0 : volume}
                       onChange={handleVolumeChange}
-                      className="w-20 accent-blue-600 h-1 bg-slate-100 rounded-full cursor-pointer appearance-none"
+                      className="w-16 sm:w-24 accent-blue-600 h-1 bg-slate-100 rounded-full cursor-pointer appearance-none"
                     />
                   </div>
                 </div>
-                <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-full border border-slate-100 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                  <Video className="w-3.5 h-3.5 text-blue-500" />
-                  {isDemo ? selectedVideo.title : "User Upload"}
+                <div className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-full border border-slate-100 text-[10px] sm:text-[11px] font-bold text-slate-500 uppercase tracking-wider max-w-[150px] sm:max-w-none">
+                  <Video className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                  <span className="truncate">{isDemo ? selectedVideo.title : (videoFile ? videoFile.name : "User Upload")}</span>
                 </div>
               </div>
             </div>

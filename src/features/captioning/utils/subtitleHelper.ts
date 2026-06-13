@@ -25,9 +25,18 @@ export function generateSRT(captions: Caption[], mode: CaptionDisplayMode): stri
   return captions
     .map((caption, idx) => {
       let text = "";
-      if (mode === "amharic") text = caption.amharic;
-      else if (mode === "original") text = caption.original;
-      else text = `${caption.original}\n${caption.amharic}`;
+      if (mode === "amharic") {
+        text = caption.amharic;
+      } else if (mode === "original") {
+        text = caption.original;
+      } else {
+        // Dual Mode Logic: 
+        // If original is Amharic, second line is English. 
+        // Otherwise, second line is Amharic.
+        const isOriginalAmharic = /[\u1200-\u137F]/.test(caption.original);
+        const secondLine = isOriginalAmharic ? caption.english : caption.amharic;
+        text = `${caption.original}\n${secondLine}`;
+      }
 
       return `${idx + 1}\n${formatTimeSRT(caption.start)} --> ${formatTimeSRT(caption.end)}\n${text}\n`;
     })
@@ -39,9 +48,15 @@ export function generateWebVTT(captions: Caption[], mode: CaptionDisplayMode): s
   const body = captions
     .map((caption, idx) => {
       let text = "";
-      if (mode === "amharic") text = caption.amharic;
-      else if (mode === "original") text = caption.original;
-      else text = `${caption.original}\n${caption.amharic}`;
+      if (mode === "amharic") {
+        text = caption.amharic;
+      } else if (mode === "original") {
+        text = caption.original;
+      } else {
+        const isOriginalAmharic = /[\u1200-\u137F]/.test(caption.original);
+        const secondLine = isOriginalAmharic ? caption.english : caption.amharic;
+        text = `${caption.original}\n${secondLine}`;
+      }
 
       return `${idx + 1}\n${formatTimeVTT(caption.start)} --> ${formatTimeVTT(caption.end)}\n${text}\n`;
     })
@@ -55,7 +70,12 @@ export function generateTXT(captions: Caption[], mode: CaptionDisplayMode): stri
       const timeTag = `[${formatVideoTime(c.start)} - ${formatVideoTime(c.end)}]`;
       if (mode === "amharic") return `${timeTag} ${c.amharic}`;
       if (mode === "original") return `${timeTag} ${c.original}`;
-      return `${timeTag}\nOriginal: ${c.original}\nAmharic:  ${c.amharic}\n`;
+      
+      const isOriginalAmharic = /[\u1200-\u137F]/.test(c.original);
+      const secondLineLabel = isOriginalAmharic ? "English" : "Amharic";
+      const secondLine = isOriginalAmharic ? c.english : c.amharic;
+      
+      return `${timeTag}\nOriginal: ${c.original}\n${secondLineLabel}: ${secondLine}\n`;
     })
     .join("\n");
 }
@@ -120,13 +140,18 @@ export function drawCanvasSubtitle(
   const paddingMultiplier = style.maxWidth !== undefined ? (style.maxWidth / 100) : 0.9;
   const maxTextWidth = canvasWidth * paddingMultiplier;
 
-  if (mode === "original" || mode === "dual") {
-    const originalWrapped = wrapCanvasText(ctx, caption.original, maxTextWidth);
-    lines.push(...originalWrapped);
-  }
-  if (mode === "amharic" || mode === "dual") {
-    const amharicWrapped = wrapCanvasText(ctx, caption.amharic, maxTextWidth);
-    lines.push(...amharicWrapped);
+  if (mode === "original") {
+    lines.push(...wrapCanvasText(ctx, caption.original, maxTextWidth));
+  } else if (mode === "amharic") {
+    lines.push(...wrapCanvasText(ctx, caption.amharic, maxTextWidth));
+  } else if (mode === "dual") {
+    // Top line: Original
+    lines.push(...wrapCanvasText(ctx, caption.original, maxTextWidth));
+    
+    // Bottom line: Translation
+    const isOriginalAmharic = /[\u1200-\u137F]/.test(caption.original);
+    const secondLine = isOriginalAmharic ? caption.english : caption.amharic;
+    lines.push(...wrapCanvasText(ctx, secondLine, maxTextWidth));
   }
 
   if (lines.length === 0) return;
