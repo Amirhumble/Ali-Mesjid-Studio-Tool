@@ -4,6 +4,7 @@ export interface Caption {
   end: number;   // in seconds
   original: string;
   amharic: string;
+  english: string;
 }
 
 export type CaptionDisplayMode = "amharic" | "original" | "dual";

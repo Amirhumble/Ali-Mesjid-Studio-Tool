@@ -20,7 +20,7 @@ export default function CaptionEditor({
 }: CaptionEditorProps) {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const handleTextChange = (id: number, field: "original" | "amharic", newText: string) => {
+  const handleTextChange = (id: number, field: "original" | "amharic" | "english", newText: string) => {
     onUpdateCaptions(
       captions.map((c) => (c.id === id ? { ...c, [field]: newText } : c))
     );
@@ -61,6 +61,7 @@ export default function CaptionEditor({
       end: baseEnd,
       original: "New caption track",
       amharic: "አዲስ የትርጉም ጽሑፍ",
+      english: "New English translation",
     };
     const updated = [...captions, newCaption].sort((a, b) => a.start - b.start);
     onUpdateCaptions(updated);
@@ -241,19 +242,30 @@ export default function CaptionEditor({
                       value={caption.original}
                       onChange={(e) => handleTextChange(caption.id, "original", e.target.value)}
                       placeholder="Enter transcript..."
-                      className="w-full min-h-[100px] rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-y"
+                      className="w-full min-h-[80px] rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-y"
                     />
                   </div>
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between">
                       <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Amharic Translation</span>
-                      <span className="text-[9px] text-slate-400 font-mono">{formatVideoTime(caption.start)} - {formatVideoTime(caption.end)}</span>
                     </div>
                     <textarea
                       value={caption.amharic}
                       onChange={(e) => handleTextChange(caption.id, "amharic", e.target.value)}
                       placeholder="የትርጉም ጽሑፍ እዚህ ይግባ..."
-                      className="w-full min-h-[100px] rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-y"
+                      className="w-full min-h-[80px] rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-y"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">English Translation</span>
+                      <span className="text-[9px] text-slate-400 font-mono">{formatVideoTime(caption.start)} - {formatVideoTime(caption.end)}</span>
+                    </div>
+                    <textarea
+                      value={caption.english}
+                      onChange={(e) => handleTextChange(caption.id, "english", e.target.value)}
+                      placeholder="Enter English translation..."
+                      className="w-full min-h-[80px] rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-700 leading-relaxed focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all resize-y"
                     />
                   </div>
                 </div>

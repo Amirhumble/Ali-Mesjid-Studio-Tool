@@ -38,17 +38,22 @@ async function callGeminiWithRetry(options: {
   schema?: any,
   isJson?: boolean
 }) {
-  const models = ["gemini-3.5-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
-  const maxRetriesPerModel = 2;
+  const models = ["gemini-1.5-flash", "gemini-1.5-pro"];
+  const maxRetriesPerModel = 3;
   let lastError: any = null;
 
   for (const modelName of models) {
     let attempt = 0;
     while (attempt < maxRetriesPerModel) {
       try {
-        console.log(`Requesting ${modelName} (Attempt ${attempt + 1}/${maxRetriesPerModel})...`);
-        const response = await ai.models.generateContent({
-          model: modelName,
+        console.log(`[AI] Requesting ${modelName} (Attempt ${attempt + 1}/${maxRetriesPerModel})...`);
+        
+        // Add a 60-second timeout to the request
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error("AI_REQUEST_TIMEOUT")), 60000)
+        );
+
+        const generatePromise = ai.getGenerativeModel({ model: modelName }).generateContent({
           contents: [
             {
               inlineData: {
@@ -56,30 +61,45 @@ async function callGeminiWithRetry(options: {
                 data: options.data,
               },
             },
-            options.prompt,
+            { text: options.prompt },
           ],
-          config: options.isJson ? {
+          generationConfig: options.isJson ? {
             responseMimeType: "application/json",
             responseSchema: options.schema,
           } : undefined,
         });
 
-        return response.text;
+        const result: any = await Promise.race([generatePromise, timeoutPromise]);
+        const response = await result.response;
+        return response.text();
       } catch (error: any) {
         lastError = error;
-        const status = error.status || (error.message?.includes("503") ? 503 : (error.message?.includes("429") ? 429 : 500));
-        const isRetryable = status === 503 || status === 429 || error.message?.includes("high demand") || error.message?.includes("UNAVAILABLE");
+        const status = error.status;
+        const code = error.code;
+        const message = error.message || "";
         
+        const isRetryable = 
+          status === 503 || 
+          status === 429 || 
+          code === 'ENOTFOUND' || 
+          code === 'ECONNRESET' || 
+          code === 'ETIMEDOUT' ||
+          message.includes("AI_REQUEST_TIMEOUT") ||
+          message.includes("high demand") || 
+          message.includes("UNAVAILABLE") ||
+          message.includes("deadline exceeded");
+
         if (isRetryable && attempt < maxRetriesPerModel - 1) {
           attempt++;
-          const delay = Math.pow(2, attempt) * 1500;
-          console.warn(`${modelName} busy (${status}). Retrying in ${delay}ms...`);
+          // Exponential backoff: 2s, 4s, 8s... with jitter
+          const delay = Math.pow(2, attempt) * 1000 + Math.random() * 1000;
+          console.warn(`[AI] ${modelName} encountered retryable error (${status || code || 'TIMEOUT'}). Retrying in ${Math.round(delay)}ms...`);
           await new Promise(r => setTimeout(r, delay));
           continue;
         }
         
-        console.warn(`${modelName} failed with status ${status}. ${models.indexOf(modelName) < models.length - 1 ? "Trying fallback model..." : "No more fallbacks."}`);
-        break; // Move to next model
+        console.warn(`[AI] ${modelName} failed critically: ${message}`);
+        break; // Move to next model if available
       }
     }
   }
@@ -133,10 +153,16 @@ app.post("/api/generate-captions", async (req, res) => {
 
     const customHintText = instructionHint ? ` Additional Hint from user: ${instructionHint}` : "";
     const promptText = `Analyze the speech in this audio or video file.
-1. Transcribe the spoken words accurately.
-2. Group the transcribed speech into subtitle blocks.
-3. Provide precise 'start' and 'end' timestamps in seconds for each block.
-4. Return each object with id, start, end, original, and amharic fields.
+1. Detect the source spoken language.
+2. Transcribe the spoken words accurately in the original language into the 'original' field.
+3. Provide an Amharic version in the 'amharic' field:
+   - If the source is Amharic, use the original transcription.
+   - If the source is not Amharic, provide a fluent Amharic translation.
+4. Provide an English version in the 'english' field:
+   - If the source is English, use the original transcription.
+   - If the source is not English, provide a fluent English translation.
+5. Group the speech into subtitle blocks with precise 'start' and 'end' timestamps in seconds.
+6. Return a JSON array of objects with id, start, end, original, amharic, and english fields.
 ${customHintText}`;
 
     const schema = {
@@ -149,8 +175,9 @@ ${customHintText}`;
           end: { type: Type.NUMBER },
           original: { type: Type.STRING },
           amharic: { type: Type.STRING },
+          english: { type: Type.STRING },
         },
-        required: ["id", "start", "end", "original", "amharic"],
+        required: ["id", "start", "end", "original", "amharic", "english"],
       },
     };
 
