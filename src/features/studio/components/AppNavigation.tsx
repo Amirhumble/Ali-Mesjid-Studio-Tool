@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { Dispatch, SetStateAction } from "react";
-import { Clock, Film, Languages, Mic, Video } from "lucide-react";
+import { Clock, Film, Languages, Mic, Music2, Video } from "lucide-react";
 import type { AppTab } from "../types";
 
 interface AppNavigationProps {
@@ -14,6 +14,7 @@ interface AppNavigationProps {
 const tabs = [
   { id: "compressor" as const, icon: Film, labelKey: "app.compressor" },
   { id: "transcribe" as const, icon: Mic, labelKey: "app.transcriber" },
+  { id: "audioTools" as const, icon: Music2, labelKey: "app.audioTools" },
   { id: "subtitleStudio" as const, icon: Video, labelKey: "app.subtitleStudio" },
 ];
 
@@ -99,7 +100,7 @@ export default function AppNavigation({
           {tabs.map((tab) => renderTabButton(tab.id, false))}
         </div>
 
-        <div className="md:hidden flex gap-2 mt-3 sm:mt-3.5">
+        <div className="md:hidden grid grid-cols-2 gap-2 mt-3 sm:mt-3.5">
           {tabs.map((tab) => renderTabButton(tab.id, true))}
         </div>
       </div>

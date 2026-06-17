@@ -26,9 +26,28 @@ const ai = new GoogleGenAI({
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 20 * 1024 * 1024 // 20MB limit
+    fileSize: 100 * 1024 * 1024 // 100MB limit
   }
 });
+
+const AUDIO_MIME_BY_EXTENSION: Record<string, string> = {
+  mp3: "audio/mpeg",
+  wav: "audio/wav",
+  wave: "audio/wav",
+  m4a: "audio/mp4",
+  mp4: "audio/mp4",
+  aac: "audio/aac",
+  ogg: "audio/ogg",
+  oga: "audio/ogg",
+  flac: "audio/flac",
+  webm: "audio/webm",
+};
+
+function normalizeAudioMimeType(file: Express.Multer.File) {
+  const extension = path.extname(file.originalname || "").replace(".", "").toLowerCase();
+  const mimeFromExtension = AUDIO_MIME_BY_EXTENSION[extension];
+  return mimeFromExtension || file.mimetype || "audio/mpeg";
+}
 
 // Helper for robust AI calls with retry and model fallback
 async function callGeminiWithRetry(options: {
@@ -53,7 +72,8 @@ async function callGeminiWithRetry(options: {
           setTimeout(() => reject(new Error("AI_REQUEST_TIMEOUT")), 60000)
         );
 
-        const generatePromise = ai.getGenerativeModel({ model: modelName }).generateContent({
+        const generatePromise = ai.models.generateContent({
+          model: modelName,
           contents: [
             {
               inlineData: {
@@ -63,15 +83,14 @@ async function callGeminiWithRetry(options: {
             },
             { text: options.prompt },
           ],
-          generationConfig: options.isJson ? {
+          config: options.isJson ? {
             responseMimeType: "application/json",
             responseSchema: options.schema,
           } : undefined,
         });
 
-        const result: any = await Promise.race([generatePromise, timeoutPromise]);
-        const response = await result.response;
-        return response.text();
+        const response: any = await Promise.race([generatePromise, timeoutPromise]);
+        return response.text ?? "";
       } catch (error: any) {
         lastError = error;
         const status = error.status;
@@ -112,8 +131,17 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
 });
 
-app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
-  try {
+app.post("/api/transcribe", (req, res) => {
+  upload.single("audio")(req, res, async (error: any) => {
+    if (error) {
+      console.error("Upload error:", error);
+      if (error.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({ error: "Audio file is too large. Please use a file under 100 MB." });
+      }
+      return res.status(400).json({ error: error.message || "Failed to upload audio file." });
+    }
+
+    try {
     if (!process.env.GEMINI_API_KEY) {
       return res.status(500).json({ error: "Gemini API key not configured. Please set GEMINI_API_KEY environment variable." });
     }
@@ -122,8 +150,9 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
       return res.status(400).json({ error: "No audio file uploaded" });
     }
 
-    const { buffer, mimetype } = req.file;
+    const { buffer } = req.file;
     const base64Data = buffer.toString('base64');
+    const mimetype = normalizeAudioMimeType(req.file);
 
     const transcription = await callGeminiWithRetry({
       data: base64Data,
@@ -136,6 +165,7 @@ app.post("/api/transcribe", upload.single('audio'), async (req, res) => {
     console.error("Transcription error:", error);
     res.status(500).json({ error: error.message || "Failed to transcribe audio" });
   }
+  });
 });
 
 // AI-generated captions endpoint used by Subtitle Studio
