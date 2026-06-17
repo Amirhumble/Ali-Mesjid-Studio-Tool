@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState, type ChangeEvent } from "r
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import clipShrinkLogo from "./assets/clipShrinkLogo.jpg";
+import AudioToolsStudio from "./features/audioTools/pages/AudioToolsStudio";
 import AppFooter from "./features/studio/components/AppFooter";
 import AppNavigation from "./features/studio/components/AppNavigation";
 import CompressionTab from "./features/studio/components/CompressionTab";
@@ -9,6 +10,7 @@ import HistoryModal from "./features/studio/components/HistoryModal";
 import TranscriptionTab from "./features/studio/components/TranscriptionTab";
 import { useHashTab } from "./features/studio/hooks/useHashTab";
 import { useObjectUrl } from "./features/studio/hooks/useObjectUrl";
+import { AUDIO_INPUT_ACCEPT, isSupportedAudioFile } from "./features/audioTools/utils/audioFormats";
 import {
   addCompressionHistoryEntry,
   addTranscriptionHistoryEntry,
@@ -120,11 +122,19 @@ export default function App() {
 
   const handleAudioChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file && file.type.startsWith("audio/")) {
+    if (file && isSupportedAudioFile(file)) {
       setAudioFile(file);
       setTranscriptionResult(null);
       setTranscriptionStatus("idle");
       setTranscribeError(null);
+      return;
+    }
+
+    if (file) {
+      setAudioFile(null);
+      setTranscriptionResult(null);
+      setTranscriptionStatus("error");
+      setTranscribeError("Please select a supported audio file such as MP3, WAV, M4A, AAC, OGG, or FLAC.");
     }
   };
 
@@ -188,14 +198,16 @@ export default function App() {
   const transcribeAudio = async () => {
     if (!audioFile) return;
 
-    setTranscriptionStatus("transcribing");
+    setTranscriptionStatus("uploading");
     setTranscribeError(null);
     transcriptionAbortRef.current = new AbortController();
 
-    const formData = new FormData();
-    formData.append("audio", audioFile);
-
     try {
+      const normalizedAudio = await normalizeAudioForTranscription(audioFile);
+      const formData = new FormData();
+      formData.append("audio", normalizedAudio, normalizedAudio.name);
+
+      setTranscriptionStatus("transcribing");
       const response = await fetch("/api/transcribe", {
         method: "POST",
         body: formData,
@@ -225,6 +237,60 @@ export default function App() {
     } finally {
       transcriptionAbortRef.current = null;
     }
+  };
+
+  const normalizeAudioForTranscription = async (file: File) => {
+    if (!loaded) {
+      return file;
+    }
+
+    const normalizedMimeTypes = new Set([
+      "audio/mpeg",
+      "audio/mp3",
+      "audio/wav",
+      "audio/x-wav",
+      "audio/mp4",
+      "audio/aac",
+      "audio/ogg",
+      "audio/flac",
+    ]);
+
+    if (normalizedMimeTypes.has(file.type) && file.type !== "" && file.type !== "application/octet-stream") {
+      return file;
+    }
+
+    const ffmpeg = ffmpegRef.current;
+    const stamp = Date.now();
+    const inputName = `transcription-input-${stamp}.${file.name.split(".").pop() || "audio"}`;
+    const outputName = `transcription-input-${stamp}.mp3`;
+
+    await ffmpeg.writeFile(inputName, await fetchFile(file));
+    await ffmpeg.exec([
+      "-i",
+      inputName,
+      "-vn",
+      "-ac",
+      "1",
+      "-ar",
+      "16000",
+      "-acodec",
+      "libmp3lame",
+      "-ab",
+      "64k",
+      outputName,
+    ]);
+
+    const data = await ffmpeg.readFile(outputName);
+    const blob = new Blob([new Uint8Array(data as ArrayBuffer)], { type: "audio/mpeg" });
+
+    try {
+      await ffmpeg.deleteFile(inputName);
+      await ffmpeg.deleteFile(outputName);
+    } catch {
+      // cleanup best effort only
+    }
+
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, "")}.mp3`, { type: "audio/mpeg" });
   };
 
   const cancelTranscription = () => {
@@ -317,6 +383,7 @@ export default function App() {
               transcriptionStatus={transcriptionStatus}
               transcriptionResult={transcriptionResult}
               transcribeError={transcribeError}
+              accept={AUDIO_INPUT_ACCEPT}
               onAudioChange={handleAudioChange}
               onTranscribe={transcribeAudio}
               onCancel={cancelTranscription}
@@ -328,6 +395,10 @@ export default function App() {
             />
           </div>
 
+          <div className={activeTab === "audioTools" ? "block" : "hidden"}>
+            <AudioToolsStudio ffmpeg={ffmpegRef.current} loaded={loaded} progress={progress} />
+          </div>
+
           <div className={activeTab === "subtitleStudio" ? "block" : "hidden"}>
             <Suspense
               fallback={
@@ -336,7 +407,7 @@ export default function App() {
                 </div>
               }
             >
-              <SubtitleStudio ffmpeg={ffmpegRef.current} />
+              <SubtitleStudio ffmpeg={ffmpegRef.current} ffmpegLoaded={loaded} />
             </Suspense>
           </div>
         </div>

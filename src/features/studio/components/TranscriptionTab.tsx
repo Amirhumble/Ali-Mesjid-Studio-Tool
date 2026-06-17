@@ -8,6 +8,7 @@ interface TranscriptionTabProps {
   transcriptionStatus: TranscriptionStatus;
   transcriptionResult: string | null;
   transcribeError: string | null;
+  accept: string;
   onAudioChange: (event: ChangeEvent<HTMLInputElement>) => void;
   onTranscribe: () => void;
   onCancel: () => void;
@@ -20,6 +21,7 @@ export default function TranscriptionTab({
   transcriptionStatus,
   transcriptionResult,
   transcribeError,
+  accept,
   onAudioChange,
   onTranscribe,
   onCancel,
@@ -28,16 +30,19 @@ export default function TranscriptionTab({
 }: TranscriptionTabProps) {
   const { t } = useTranslation();
   const isTranscribing = transcriptionStatus === "transcribing";
+  const isUploading = transcriptionStatus === "uploading";
+  const isCompleted = transcriptionStatus === "completed" && Boolean(transcriptionResult);
+  const showUploadState = transcriptionStatus === "idle" || transcriptionStatus === "error";
 
   return (
     <div className="w-full">
       <div className="bg-white rounded-lg sm:rounded-xl md:rounded-2xl p-4 sm:p-5 md:p-6 lg:p-8 shadow-md border border-slate-200 min-h-[400px] flex flex-col">
-        {!transcriptionResult && transcriptionStatus !== "transcribing" ? (
+        {showUploadState && !isCompleted ? (
           <div className="flex-1 flex flex-col items-center justify-center">
             <label className="group relative flex flex-col items-center justify-center w-full max-w-2xl aspect-21/9 border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:bg-slate-50 hover:border-blue-400 transition-all duration-500 overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50 min-h-[200px]">
               <FileAudio className="w-10 h-10 mb-3 text-slate-400 group-hover:text-blue-600 transition-colors" />
               <p className="text-base font-medium text-slate-700 px-4 text-center">{t("transcriber.select_file")}</p>
-              <input type="file" className="hidden" accept="audio/*" onChange={onAudioChange} />
+              <input type="file" className="hidden" accept={accept} onChange={onAudioChange} />
             </label>
             {audioFile && (
               <div className="flex gap-3 mt-8 w-full max-w-2xl">
@@ -52,7 +57,13 @@ export default function TranscriptionTab({
               </div>
             )}
           </div>
-        ) : transcriptionStatus === "transcribing" ? (
+        ) : isUploading ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+            <RefreshCw className="w-10 h-10 animate-spin text-blue-600 mb-6" />
+            <h2 className="text-2xl font-semibold mb-2 text-slate-900">{t("transcriber.uploading")}</h2>
+            <p className="text-sm text-slate-500 max-w-md">{t("transcriber.uploading_hint")}</p>
+          </div>
+        ) : isTranscribing ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
             <RefreshCw className="w-10 h-10 animate-spin text-blue-600 mb-6" />
             <h2 className="text-2xl font-semibold mb-2 text-slate-900">{t("transcriber.gemini_listening")}</h2>
@@ -60,7 +71,7 @@ export default function TranscriptionTab({
               {t("transcriber.cancel")}
             </button>
           </div>
-        ) : (
+        ) : isCompleted ? (
           <div className="flex-1 flex flex-col h-full">
             <div className="flex items-center justify-between mb-6 pb-4 border-b border-slate-200">
               <div className="flex items-center gap-3">
@@ -83,6 +94,12 @@ export default function TranscriptionTab({
             <div className="flex-1 bg-gradient-to-br from-slate-50 to-blue-50 rounded-lg p-6 overflow-y-auto border border-slate-200">
               <div className="text-base leading-relaxed text-slate-800 whitespace-pre-wrap font-serif italic">{transcriptionResult}</div>
             </div>
+          </div>
+        ) : null}
+
+        {showUploadState && !isCompleted && audioFile && (
+          <div className="mt-6 p-4 bg-slate-50 rounded-lg border border-slate-200 text-slate-700 text-sm">
+            {audioFile.name}
           </div>
         )}
 

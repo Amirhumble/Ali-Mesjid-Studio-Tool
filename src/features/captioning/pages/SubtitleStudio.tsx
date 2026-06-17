@@ -34,9 +34,10 @@ type ExportQuality = "original" | "high" | "balanced" | "small";
 
 interface SubtitleStudioProps {
   ffmpeg?: any;
+  ffmpegLoaded?: boolean;
 }
 
-export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
+export default function SubtitleStudio({ ffmpeg, ffmpegLoaded }: SubtitleStudioProps) {
   const [selectedVideo, setSelectedVideo] = useState(SAMPLE_VIDEOS[0]);
   const [videoSrc, setVideoSrc] = useState(SAMPLE_VIDEOS[0].url);
   const [isDemo, setIsDemo] = useState(true);
@@ -282,7 +283,7 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
   };
 
   const extractAudioFromMedia = async (fileOrUrl: File | string): Promise<{ data: string, mimeType: string }> => {
-    if (!ffmpeg || !ffmpeg.loaded) {
+    if (!ffmpeg || !ffmpegLoaded) {
       throw new Error("FFmpeg engine is not yet initialized. Audio extraction failed.");
     }
     
@@ -406,7 +407,7 @@ export default function SubtitleStudio({ ffmpeg }: SubtitleStudioProps) {
   };
 
   const handleExportHardcodedVideo = async () => {
-    if (!ffmpeg || !ffmpeg.loaded) {
+    if (!ffmpeg || !ffmpegLoaded) {
       setExportError("FFmpeg engine is not yet initialized. Please wait.");
       return;
     }

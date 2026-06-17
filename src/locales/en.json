@@ -5,6 +5,7 @@
     "logo_alt": "Ali Mesjid Studio Tool Logo",
     "compressor": "Compressor",
     "transcriber": "Transcriber",
+    "audioTools": "Audio Tools",
     "history": "History"
   },
   "compressor": {
@@ -45,6 +46,8 @@
     "select_file": "Select Audio File",
     "file_hint": "MP3, WAV, AAC, etc.",
     "transcribe_ai": "TRANSCRIBE WITH GEMINI AI",
+    "uploading": "PREPARING AUDIO...",
+    "uploading_hint": "Normalizing the selected file and preparing it for transcription.",
     "transcribing": "TRANSCRIBING...",
     "cancel": "CANCEL",
     "gemini_listening": "Gemini is Listening...",

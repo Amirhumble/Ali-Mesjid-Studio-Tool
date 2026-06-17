@@ -1,6 +1,6 @@
 export type CompressionStatus = "idle" | "loading" | "compressing" | "completed" | "error";
 export type TranscriptionStatus = "idle" | "uploading" | "transcribing" | "completed" | "error";
-export type AppTab = "compressor" | "transcribe" | "subtitleStudio";
+export type AppTab = "compressor" | "transcribe" | "subtitleStudio" | "audioTools";
 export type VideoScale = "original" | "720p" | "480p";
 export type CompressionPreset = "ultrafast" | "superfast" | "veryfast" | "fast";
 
@@ -27,4 +27,4 @@ export interface TranscriptionHistory {
   timestamp: number;
 }
 
-export const STUDIO_TABS: AppTab[] = ["compressor", "transcribe", "subtitleStudio"];
+export const STUDIO_TABS: AppTab[] = ["compressor", "transcribe", "audioTools", "subtitleStudio"];
