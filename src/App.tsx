@@ -395,9 +395,9 @@ export default function App() {
             />
           </div>
 
-          <div className={activeTab === "audioTools" ? "block" : "hidden"}>
+          {/* <div className={activeTab === "audioTools" ? "block" : "hidden"}>
             <AudioToolsStudio ffmpeg={ffmpegRef.current} loaded={loaded} progress={progress} />
-          </div>
+          </div> */}
 
           <div className={activeTab === "subtitleStudio" ? "block" : "hidden"}>
             <Suspense

@@ -57,7 +57,7 @@ async function callGeminiWithRetry(options: {
   schema?: any,
   isJson?: boolean
 }) {
-  const models = ["gemini-1.5-flash", "gemini-1.5-pro"];
+  const models = ["gemini-3-flash-preview", "gemini-2.0-flash", "gemini-1.5-flash"];
   const maxRetriesPerModel = 3;
   let lastError: any = null;
 
@@ -157,7 +157,7 @@ app.post("/api/transcribe", (req, res) => {
     const transcription = await callGeminiWithRetry({
       data: base64Data,
       mimeType: mimetype,
-      prompt: "Please transcribe this audio file accurately. Identify speakers if there are multiple. Provide the transcription in a clear format."
+      prompt: "Please transcribe this audio file accurately. Identify speakers if there are multiple. Provide the transcription in a clear format as plain text. Do NOT include any timestamps or time codes."
     });
 
     res.json({ transcription });

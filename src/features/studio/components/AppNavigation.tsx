@@ -14,7 +14,6 @@ interface AppNavigationProps {
 const tabs = [
   { id: "compressor" as const, icon: Film, labelKey: "app.compressor" },
   { id: "transcribe" as const, icon: Mic, labelKey: "app.transcriber" },
-  { id: "audioTools" as const, icon: Music2, labelKey: "app.audioTools" },
   { id: "subtitleStudio" as const, icon: Video, labelKey: "app.subtitleStudio" },
 ];
 
